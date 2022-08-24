@@ -37,9 +37,6 @@ UD_AnimationManagerScript Property UDAM hidden
         return UDmain.UDAM
     EndFunction
 EndProperty
-;UI menus
-UITextEntryMenu Property TextMenu auto
-UIListMenu Property ListMenu auto
 
 bool Property UD_HardcoreMode = true auto hidden
 
@@ -66,19 +63,25 @@ float   Property UD_BaseDeviceSkillIncrease         = 35.0      auto hidden
 float   Property UD_CooldownMultiplier              = 1.0       auto hidden
 Bool    Property UD_AutoCrit                        = False     auto hidden
 Int     Property UD_AutoCritChance                  = 80        auto hidden
-Int     Property UD_MinigameHelpCd                  = 45        auto
-Float   Property UD_MinigameHelpCD_PerLVL           = 15.0      auto;CD % decrease per Helper LVL
-Int     Property UD_MinigameHelpXPBase              = 35        auto
-Float   Property UD_MutexTimeOutTime                = 1.0       auto
-Float   Property UD_LockUnlockMutexTimeOutTime      = 15.0      auto hidden
+Int     Property UD_MinigameHelpCd                  = 60        auto hidden
+Float   Property UD_MinigameHelpCD_PerLVL           = 10.0      auto hidden ;CD % decrease per Helper LVL
+Int     Property UD_MinigameHelpXPBase              = 35        auto hidden
+Float   Property UD_MutexTimeOutTime                = 1.0       auto hidden
 bool    Property UD_AllowArmTie                     = true      auto hidden
 bool    Property UD_AllowLegTie                     = true      auto hidden
-
+Int     Property UD_BlackGooRareDeviceChance        = 10        auto hidden
+Bool    Property UD_PreventMasterLock               = False     auto hidden
+;Lvl scalling
+Float   Property UD_DeviceLvlHealth                 = 0.025     auto hidden
+Float   Property UD_DeviceLvlLockpick               = 0.5       auto hidden
+Int     Property UD_DeviceLvlLocks                  = 5         auto hidden
 ;changes how much is strength converted to orgasm rate, 
 ;example: if UD_VibrationMultiplier = 0.1 and vibration strength will be 100, orgasm rate will be 100*0.1 = 10 O/s 
-float     Property UD_VibrationMultiplier     = 0.10    auto hidden
-float     Property UD_ArousalMultiplier         = 0.05    auto hidden
+float     Property UD_VibrationMultiplier           = 0.10    auto hidden
+float     Property UD_ArousalMultiplier             = 0.05    auto hidden
 
+Bool      Property UD_OutfitRemove                  = True    auto hidden
+Bool      Property UD_AlternateAnimation            = False   auto hidden
 UD_PlayerSlotScript Property UD_PlayerSlot auto
 
 ;factions
@@ -202,7 +205,6 @@ Function Update()
     RegisterForSingleUpdate(2*UD_UpdateTime)
     
     _activateDevicePackage = none
-    
     _startVibFunctionPackage = none
     
     ResetUI()
@@ -316,9 +318,6 @@ Function DisableActor(Actor akActor,bool bBussy = false)
         Log("DisableActor("+getActorName(akActor) + ")",2)
     endif
     StartMinigameDisable(akActor)
-    ;if !akActor.HasMagicEffectWithKeyword(UDlibs.MinigameDisableEffect_KW)
-    ;    UDlibs.MinigameDisableSpell.cast(akActor)
-    ;endif
 EndFunction
 
 Function UpdateDisabledActor(Actor akActor,bool bBussy = false)
@@ -332,18 +331,13 @@ Function EnableActor(Actor akActor,bool bBussy = false)
     if UDmain.TraceAllowed()    
         Log("EnableActor("+getActorName(akActor)+")",2)
     endif
-    ;akActor.DispelSpell(UDlibs.MinigameDisableSpell)
     EndMinigameDisable(akActor)
 EndFunction
 
 Function StartMinigameDisable(Actor akActor)
     akActor.AddToFaction(BussyFaction)
-
     if UDmain.ActorIsPlayer(akActor)
-        if !akActor.HasMagicEffectWithKeyword(UDlibs.HardcoreDisable_KW)
-            Game.EnablePlayerControls(abMovement = False)
-        endif
-        Game.DisablePlayerControls(abMovement = False)
+        UpdatePlayerControl()
         Game.SetPlayerAiDriven(True)
     else
         akActor.SetDontMove(True)
@@ -354,10 +348,7 @@ EndFunction
 Function UpdateMinigameDisable(Actor akActor)
     if akActor.IsInFaction(BussyFaction)
         if UDmain.ActorIsPlayer(akActor)
-            if !akActor.HasMagicEffectWithKeyword(UDlibs.HardcoreDisable_KW)
-                Game.EnablePlayerControls(abMovement = False)
-            endif
-            Game.DisablePlayerControls(abMovement = False)
+            UpdatePlayerControl()
             Game.SetPlayerAiDriven(True)
         else
             akActor.SetDontMove(True)
@@ -368,12 +359,25 @@ EndFunction
 Function EndMinigameDisable(Actor akActor)
     akActor.RemoveFromFaction(BussyFaction)
     if UDmain.ActorIsPlayer(akActor)
-        if !akActor.HasMagicEffectWithKeyword(UDlibs.HardcoreDisable_KW)
-            Game.EnablePlayerControls(abMovement = False)
-        endif
+        libsp.ProcessPlayerControls(false)
         Game.SetPlayerAiDriven(False)
     else
         akActor.SetDontMove(False)
+    endif
+EndFunction
+
+Function UpdatePlayerControl()
+    Game.EnablePlayerControls(abMovement = true, abFighting = false, abSneaking = false, abMenu = true, abActivate = false) 
+    Game.DisablePlayerControls(abMovement = False, abMenu = false)
+    if !UDmain.Player.HasMagicEffectWithKeyword(UDlibs.HardcoreDisable_KW)
+        if UDmain.Player.WornHasKeyword(libs.zad_DeviousBlindfold) && (libs.config.BlindfoldMode == 1 || libs.config.BlindfoldMode == 0)
+            int cameraState = Game.GetCameraState()
+            if (cameraState == 8 || cameraState == 9)
+                Game.EnablePlayerControls(abMovement = False, abSneaking = False)
+            endif
+        else
+            Game.EnablePlayerControls(abMovement = False)
+        endif
     endif
 EndFunction
 
@@ -386,9 +390,24 @@ bool Function InZadAnimation(Actor akActor)
 EndFunction
 
 Function CheckHardcoreDisabler(Actor akActor)
-    if UD_HardcoreMode && UDmain.ActorIsPlayer(akActor)
-        if akActor.wornhaskeyword(libs.zad_deviousHeavyBondage) && !akActor.HasMagicEffectWithKeyword(UDlibs.HardcoreDisable_KW)
-            UDlibs.HardcoreDisableSpell.cast(akActor)
+    if UD_HardcoreMode
+        if !UDmain.Player.HasSpell(UDlibs.HardcoreDisableSpell) && UDmain.Player.HasMagicEffectWithKeyword(UDlibs.HardcoreDisable_KW) 
+            UDmain.Player.DispelSpell(UDlibs.HardcoreDisableSpell)
+        endif
+        if UDmain.Player.wornhaskeyword(libs.zad_deviousHeavyBondage) && !UDmain.Player.HasSpell(UDlibs.HardcoreDisableSpell)
+            bool loc_applyeffect = false
+            if UDmain.Player.wornhaskeyword(UDlibs.InvisibleHBKW)
+                loc_applyeffect = true ;player have invisible heavy bondage (from cuffs)
+            else
+                ;only apply if heavy bondage device is UD
+                UD_CustomDevice_RenderScript loc_hbdevice = GetHeavyBondageDevice(UDmain.Player)
+                if loc_hbdevice
+                    loc_applyeffect = true
+                endif
+            endif
+            if loc_applyeffect
+                UDmain.Player.AddSpell(UDlibs.HardcoreDisableSpell,false)
+            endif
         endif
     endif
 EndFunction
@@ -635,19 +654,6 @@ int Function debugSize(Actor akActor)
     return getNPCSlot(akActor).debugSize()
 EndFunction
 
-
-string[] Function GetHeavyBondageAnimation_Armbinder(bool hobble = false)
-    return UDAM.GetHeavyBondageAnimation_Armbinder(hobble)
-EndFunction
-
-string[] Function GetStruggleAnimations(Actor akActor,Armor renDevice)
-    return UDAM.GetStruggleAnimations(akActor, renDevice)
-EndFunction
-
-string[] Function GetStruggleAnimationsByKeyword(Actor akActor,Keyword akKeyword,bool abHobble = false)
-    return UDAM.GetStruggleAnimationsByKeyword(akActor, akKeyword, abHobble)
-EndFunction
-
 Function LockDeviceParalel(actor akActor, armor deviceInventory, bool force = false)
     int handle = ModEvent.Create("UD_LockDeviceParalel")
     if (handle)
@@ -827,29 +833,38 @@ Event onUpdate()
         if UDmain.DebugMod
             UDmain.Player.addItem(UDlibs.AbadonPlug,1)
         endif
-        LastUpdateTime = Utility.GetCurrentGameTime()
-        LastUpdateTime_Hour = Utility.GetCurrentGameTime()
+        ;LastUpdateTime = Utility.GetCurrentGameTime()
+        ;LastUpdateTime_Hour = Utility.GetCurrentGameTime()
         loc_init = true
     endif
-    if !UDmain.UD_DisableUpdate
-        float timePassed = Utility.GetCurrentGameTime() - LastUpdateTime
-        UDCD_NPCM.update(timePassed)
-        LastUpdateTime = Utility.GetCurrentGameTime()
-    endif
-    RegisterForSingleUpdate(UD_UpdateTime)
+    ;if !UDmain.UD_DisableUpdate
+    ;    float timePassed = Utility.GetCurrentGameTime() - LastUpdateTime
+    ;    UDCD_NPCM.update(timePassed)
+    ;    LastUpdateTime = Utility.GetCurrentGameTime()
+    ;endif
+    ;RegisterForSingleUpdate(UD_UpdateTime)
 EndEvent
 
-float LastUpdateTime_Hour = 0.0 ;last time the update happened in days
-Event OnUpdateGameTime()
-    if !UDmain.UD_DisableUpdate
-        Utility.waitMenuMode(Utility.randomFloat(2.0,4.0))
-        float currentgametime = Utility.GetCurrentGameTime()
-        float mult = 24.0*(currentgametime - LastUpdateTime_Hour) ;multiplier for how much more then 1 hour have passed, ex: for 2.5 hours passed without update, the mult will be 2.5
-        UDCD_NPCM.updateHour(mult)
-        LastUpdateTime_Hour = Utility.GetCurrentGameTime()
-    endif
-    registerForSingleUpdateGameTime(1.0)
-endEvent
+;float LastUpdateTime_Hour = 0.0 ;last time the update happened in days
+;Event OnUpdateGameTime()
+;    if !UDmain.UD_DisableUpdate
+;        Utility.waitMenuMode(Utility.randomFloat(2.0,4.0))
+;        float currentgametime = Utility.GetCurrentGameTime()
+;        float mult = 24.0*(currentgametime - LastUpdateTime_Hour) ;multiplier for how much more then 1 hour have passed, ex: for 2.5 hours passed without update, the mult will be 2.5
+;        UDCD_NPCM.updateHour(mult)
+;        LastUpdateTime_Hour = Utility.GetCurrentGameTime()
+;    endif
+;    registerForSingleUpdateGameTime(1.0)
+;endEvent
+
+State Minigame
+    ;Event onUpdate()
+    ;    RegisterForSingleUpdate(2*UD_UpdateTime)
+    ;EndEvent
+    ;Event OnUpdateGameTime()
+    ;    registerForSingleUpdateGameTime(0.1)
+    ;EndEvent
+EndState
 
 ;-------------------------------------------------------------------------------------
 ;-------------------------------------------------------------------------------------
@@ -871,17 +886,18 @@ Event MinigameKeysRegister()
 EndEvent
 
 Event MinigameKeysUnregister()
-    UDUI.MinigameKeysUnregister()
     UDUI.GoToState("")
+    UDUI.MinigameKeysUnregister()
 EndEvent
 
 bool Function KeyIsUsedGlobaly(int keyCode)
     return UDUI.KeyIsUsedGlobaly(keyCode)
 EndFunction
 
-bool Property crit = false auto hidden
-string Property selected_crit_meter =  "Error" auto hidden
-Int Property UD_CritEffect = 2 auto hidden
+bool    Property crit = false auto hidden
+string  Property selected_crit_meter    =  "Error" auto hidden
+Int     Property UD_CritEffect = 2 auto hidden
+Bool    Property UD_MandatoryCrit       = False auto
 Event StruggleCritCheck(UD_CustomDevice_RenderScript device, int chance, string strArg, float difficulty)
     string meter
     if Utility.randomInt(1,100) <= chance
@@ -901,7 +917,7 @@ Event StruggleCritCheck(UD_CustomDevice_RenderScript device, int chance, string 
             else
                 device.critFailure() ;failure
             endif
-            return    
+            return
         elseif strArg == "NPC"
             if Utility.randomInt() > 30 ;npc reacted
                 float randomResponceTime = Utility.randomFloat(0.4,0.95) ;random reaction time
@@ -911,7 +927,7 @@ Event StruggleCritCheck(UD_CustomDevice_RenderScript device, int chance, string 
                     device.critFailure() ;failure
                 endif
             endif
-            return    
+            return 
         endif
         
         selected_crit_meter = meter
@@ -941,6 +957,12 @@ Event StruggleCritCheck(UD_CustomDevice_RenderScript device, int chance, string 
         endif
         
         Utility.wait(difficulty)
+        if UD_MandatoryCrit
+            if crit
+                crit = False
+                device.CritFailure()
+            endif
+        endif
         crit = False
     endif    
 EndEvent
@@ -979,11 +1001,13 @@ EndFunction
 Bool Property UD_CurrentNPCMenuIsFollower = False auto conditional hidden
 Bool Property UD_CurrentNPCMenuIsRegistered = False auto conditional hidden
 Bool Property UD_CurrentNPCMenuTargetIsHelpless = False auto conditional hidden
+Bool Property UD_CurrentNPCMenuTargetIsInMinigame = False auto conditional hidden
 Function NPCMenu(Actor akActor)
     SetMessageAlias(akActor)
     UD_CurrentNPCMenuIsFollower = ActorIsFollower(akActor)
     UD_CurrentNPCMenuIsRegistered = isRegistered(akActor)
     UD_CurrentNPCMenuTargetIsHelpless = (!actorFreeHands(akActor) || akActor.getAV("paralysis") || akActor.GetSleepState() == 3) && actorFreeHands(UDmain.Player)
+    UD_CurrentNPCMenuTargetIsInMinigame = ActorInMinigame(akActor)
     int loc_res = NPCDebugMenuMsg.show()
     if loc_res == 0
         UDCD_NPCM.RegisterNPC(akActor,true)
@@ -1010,6 +1034,8 @@ Function NPCMenu(Actor akActor)
         endif
     elseif loc_res == 8
         showActorDetails(akActor)
+    elseif loc_res == 9
+        getMinigameDevice(akActor).StopMinigame()
     else
         return
     endif
@@ -1027,13 +1053,12 @@ EndFunction
 
 Function OpenHelpDeviceMenu(UD_CustomDevice_RenderScript device,Actor akHelper,bool bAllowCommand,bool bIgnoreCooldown = false)
     if device && akHelper
-        bool[] loc_arrcontrol = new bool[30]
         bool loc_cond = true
         if !bIgnoreCooldown
             float loc_currenttime = Utility.GetCurrentGameTime()
             float loc_cooldowntime = StorageUtil.GetFloatValue(akHelper,"UDNPCCD:"+device.getWearer(),loc_currenttime)
             if loc_cooldowntime > loc_currenttime
-                Print("On cooldown! (" + ToUnsig(Round(((loc_cooldowntime - loc_currenttime)*24*60)))+" min)")
+                Print("On cooldown! (" + ToUnsig(Round(((loc_cooldowntime - loc_currenttime)*24*60)))+" min)",0)
                 loc_cond = false
             endif
         endif
@@ -1042,23 +1067,20 @@ Function OpenHelpDeviceMenu(UD_CustomDevice_RenderScript device,Actor akHelper,b
             loc_cond = false
             bAllowCommand = false
         endif
-        
+
+        bool[] loc_arrcontrol; = new bool[30]
         if !loc_cond 
-            int i = 18
-            while i 
-                i -= 1
-                loc_arrcontrol[i] = true
-            endwhile
+            loc_arrcontrol = Utility.CreateBoolArray(30,True)
             loc_arrcontrol[15] = false
             loc_arrcontrol[16] = false
         else
+            loc_arrcontrol = new bool[30]
             ;tying and repairing doesn't sound like helping
             loc_arrcontrol[06] = true
             loc_arrcontrol[07] = true
         endif
 
         loc_arrcontrol[14] = !bAllowCommand
-
         device.deviceMenuWH(akHelper,loc_arrcontrol)
     endif
 EndFunction
@@ -1069,7 +1091,7 @@ float Function CalculateHelperCD(Actor akActor,Int iLevel = 0)
         iLevel = GetHelperLVL(akActor)
     endif
     float loc_res = UD_MinigameHelpCd - Round((iLevel - 1)*(UD_MinigameHelpCD_PerLVL/100.0)*UD_MinigameHelpCd)
-    loc_res = fRange(loc_res,5.0,600.0) ;crop the value
+    loc_res = fRange(loc_res,5.0,60.0*24.0) ;crop the value
     loc_res = loc_res/(60.0*24.0) ;convert to days
     return loc_res
 EndFunction
@@ -1085,16 +1107,24 @@ int Function ResetHelperCD(Actor akHelper,Actor akHelped,Int iXP = 0)
     return loc_lvl
 EndFunction
 
+Int Function CalculateHelperXpRequired(Int aiLevel)
+    return Round(aiLevel*100*Math.Pow(1.03,aiLevel))
+EndFunction
 
 ;returns updated lvl
 int Function addHelperXP(Actor akHelper, int iXP)
-    int loc_currentXP = StorageUtil.GetIntValue(akHelper,"UDNPCXP",0)
-    int loc_currentLVL = GetHelperLVL(akHelper)
-    int loc_nextXP = loc_currentXP + iXP
-    int loc_nextLVL = loc_currentLVL
-    while loc_nextXP >= loc_nextLVL*100
-        loc_nextXP -= loc_nextLVL*100
-        loc_nextLVL += 1
+    int loc_currentXP   = StorageUtil.GetIntValue(akHelper,"UDNPCXP",0)
+    int loc_currentLVL  = GetHelperLVL(akHelper)
+    int loc_nextXP      = loc_currentXP + iXP
+    int loc_nextLVL     = loc_currentLVL
+    while loc_nextXP >= CalculateHelperXpRequired(loc_nextLVL)
+        loc_nextXP      -= CalculateHelperXpRequired(loc_nextLVL)
+        loc_nextLVL     += 1
+        if UDmain.ActorIsPlayer(akHelper)
+            UDmain.Print("Your Helper skill level increased to " + loc_nextLVL + " !")
+        elseif ActorIsFollower(akHelper)
+            UDmain.Print(GetActorName(akHelper) + "s Helper level have increased to " + loc_nextLVL + " !")
+        endif
     endwhile
     StorageUtil.SetIntValue(akHelper,"UDNPCXP",loc_nextXP)
     if loc_nextLVL != loc_currentLVL
@@ -1108,9 +1138,9 @@ int Function GetHelperLVL(Actor akHelper)
 EndFunction
 
 float Function GetHelperLVLProgress(Actor akHelper)
-    int loc_currentXP = StorageUtil.GetIntValue(akHelper,"UDNPCXP",0)
+    Float loc_currentXP = StorageUtil.GetIntValue(akHelper,"UDNPCXP",0)
     int loc_currentLVL = StorageUtil.GetIntValue(akHelper,"UDNPCLVL",1)
-    return loc_currentXP/(100.0*(loc_currentLVL))
+    return loc_currentXP/CalculateHelperXpRequired(loc_currentLVL);(100.0*(loc_currentLVL))
 EndFunction
 
 Function PlayerMenu()
@@ -1202,15 +1232,6 @@ bool Function CheckRenderDeviceEquipped(Actor akActor, Armor rendDevice)
         loc_mask = Math.LeftShift(loc_mask,1)
     endwhile
     return false ;device is not equipped
-EndFunction
-
-Form Function GetShield(Actor akActor)
-    Form loc_shield = akActor.GetEquippedObject(0)
-    if loc_shield && (loc_shield.GetType() == 26 || loc_shield.GetType() == 31)
-        return loc_shield
-    else
-        return none
-    endif
 EndFunction
 
 ;function made as replacemant for akActor.isEquipped, because that function doesn't work for NPCs
@@ -1394,6 +1415,8 @@ EndFunction
 ;//////////////////////////////////////;
 ;-Used to return absolute and relative skill values which are used by some minigames
 
+Int Property UD_SkillEfficiency = 1 auto ;% increase per one skill point
+
 float Function GetAgilitySkill(Actor akActor)
     UD_CustomDevice_NPCSlot loc_slot = getNPCSlot(akActor)
     if loc_slot
@@ -1411,7 +1434,7 @@ float Function getActorAgilitySkills(Actor akActor)
 EndFunction
 
 float Function getActorAgilitySkillsPerc(Actor akActor)
-    return GetAgilitySkill(akActor)/100.0
+    return GetAgilitySkill(akActor)*UD_SkillEfficiency/100.0
 EndFunction
 
 float Function GetStrengthSkill(Actor akActor)
@@ -1431,7 +1454,7 @@ float Function getActorStrengthSkills(Actor akActor)
 EndFunction
 
 float Function getActorStrengthSkillsPerc(Actor akActor)
-    return GetStrengthSkill(akActor)/100.0
+    return GetStrengthSkill(akActor)*UD_SkillEfficiency/100.0
 EndFunction
 
 float Function GetMagickSkill(Actor akActor)
@@ -1451,7 +1474,7 @@ float Function getActorMagickSkills(Actor akActor)
 EndFunction
 
 float Function getActorMagickSkillsPerc(Actor akActor)
-    return GetMagickSkill(akActor)/100.0
+    return GetMagickSkill(akActor)*UD_SkillEfficiency/100.0
 EndFunction
 
 float Function GetCuttingSkill(Actor akActor)
@@ -1470,7 +1493,7 @@ float Function getActorCuttingSkills(Actor akActor)
 EndFunction
 
 float Function getActorCuttingSkillsPerc(Actor akActor)
-    return GetCuttingSkill(akActor)/100.0
+    return GetCuttingSkill(akActor)*UD_SkillEfficiency/100.0
 EndFunction
 
 float Function GetSmithingSkill(Actor akActor)
@@ -1490,7 +1513,7 @@ float Function getActorSmithingSkills(Actor akActor)
 EndFunction
 
 float Function getActorSmithingSkillsPerc(Actor akActor)
-    return GetSmithingSkill(akActor)/100.0
+    return GetSmithingSkill(akActor)*UD_SkillEfficiency/100.0
 EndFunction
 
 int Function GetPerkSkill(Actor akActor, Formlist akPerkList, int aiSkillPerPerk = 10)
@@ -1533,7 +1556,7 @@ Weapon Function getSharpestWeapon(Actor akActor)
     Weapon loc_bestWeapon = none
     if isRegistered(akActor)
         UD_CustomDevice_NPCSlot loc_slot = getNPCSlot(akActor)
-        loc_bestWeapon = loc_slot.getBestWeapon()
+        loc_bestWeapon = loc_slot.UD_BestWeapon
     else
         int loc_i = akActor.GetNumItems()
         while loc_i
@@ -1558,7 +1581,7 @@ bool Function isSharp(Weapon wWeapon)
     int        loc_type = wWeapon.GetWeaponType()
     loc_cond = loc_cond || (loc_type > 0 && loc_type < 4) ;swords, daggers, war axes
     loc_cond = loc_cond || (loc_type == 5) ;great swords
-    loc_cond = loc_cond || (loc_type == 6) ;battleaxes and warhammes
+    loc_cond = loc_cond || (loc_type == 6) ;battleaxes and warhammers
     return loc_cond
     ;/
     int loc_i = UDlibs.SharpWeaponsKeywords.length
@@ -2063,6 +2086,15 @@ int Function getOffVibratorNum(Actor akActor)
     endif
 EndFunction
 
+;returns number of activable vibrators
+int Function getActivableVibratorNum(Actor akActor)
+    if isRegistered(akActor)
+        return getNPCSlot(akActor).getActivableVibratorNum()
+    else
+        return 0
+    endif
+EndFunction
+
 ;returns all vibrators
 UD_CustomDevice_RenderScript[] Function getVibrators(Actor akActor)
     if isRegistered(akActor)
@@ -2073,6 +2105,14 @@ EndFunction
 
 ;returns all turned off vibrators
 UD_CustomDevice_RenderScript[] Function getOffVibrators(Actor akActor)
+    if isRegistered(akActor)
+        return getNPCSlot(akActor).getOffVibrators()
+    endif
+    return none
+EndFunction
+
+;returns all turned off vibrators
+UD_CustomDevice_RenderScript[] Function getActivableVibrators(Actor akActor)
     if isRegistered(akActor)
         return getNPCSlot(akActor).getOffVibrators()
     endif
@@ -2196,7 +2236,8 @@ bool Function activateDevice(UD_CustomDevice_RenderScript udCustomDevice)
             UD_CustomDevice_RenderScript[] loc_device_arr = getActiveDevices(udCustomDevice.getWearer())
             UD_CustomDevice_RenderScript loc_device = loc_device_arr[Utility.randomInt(0,loc_num - 1)]
             if udCustomDevice.WearerIsPlayer()
-                debug.notification("Your " + udCustomDevice.getDeviceName() + " activates " + loc_device.getDeviceName() + " !!")
+                ;debug.notification("Your " + udCustomDevice.getDeviceName() + " activates " + loc_device.getDeviceName() + " !!")
+                UDmain.Print("Your " + udCustomDevice.getDeviceName() + " activates " + loc_device.getDeviceName() + " !!",2)
             endif
             udCustomDevice = loc_device
         else
@@ -2527,79 +2568,17 @@ Function TestExpression(Actor akActor,sslBaseExpression sslExpression,bool bMout
     endif
 EndFunction
 
-bool _debugSwitch = false
-
 ;function used for mod development
 Function DebugFunction(Actor akActor)
-    ;/
-    int loc_map = 0x00000000
-    int loc_value = 65535
-    int loc_iter = 1000
-    int loc_number = loc_iter
-    startRecordTime()
-    while loc_number
-        loc_map = codeBit_old(loc_map,loc_value, 16, 15)
-        loc_number -= 1
-    endwhile
-    float loc_time_codeBit_old = FinishRecordTime("codeBit_old (iter = "+loc_iter+" )")
-    
-    loc_number = loc_iter
-    int loc_res = 0
-    startRecordTime()
-    while loc_number
-        loc_res = decodeBit_old(loc_map, 16, 15)
-        loc_number -= 1
-    endwhile
-    float loc_time_decodeBit_old = FinishRecordTime("decodeBit_old res = "+loc_res+" (iter = "+loc_iter+" )")
-    
-    loc_number = loc_iter
-    startRecordTime()
-    while loc_number
-        loc_map = codeBit(loc_map,loc_value, 16, 15)
-        loc_number -= 1
-    endwhile
-    float loc_time_codeBit = FinishRecordTime("codeBit (iter = "+loc_iter+" )")
-    
-    loc_number = loc_iter
-    startRecordTime()
-    while loc_number
-        loc_res = decodeBit(loc_map, 16, 15)
-        loc_number -= 1
-    endwhile
-    float loc_time_decodeBit = FinishRecordTime("decodeBit res = "+loc_res+" (iter = "+loc_iter+" )")
-    
-    GInfo("Speed increase - codeBit   - " + Round((loc_time_codeBit_old/loc_time_codeBit)*100) + " %")
-    GInfo("Speed increase - decodeBit - " + Round((loc_time_decodeBit_old/loc_time_decodeBit)*100) + " %")
-    /;
     UDmain.UDRRM.LockAllSuitableRestrains(akActor,false,0xffff)
-    
-    ;libs.LockDevice(akActor,libsx.zadx_gag_facemask_biz_transparent_Inventory)
-    ;libs.LockDevice(akActor,libsx.zadx_catsuit_gasmask_tube_black_Inventory)
-        
-    ;libs.LockDevice(akActor,libsx.zadx_StraitJacketLatexBlackInventory)
-    ;libs.LockDevice(akActor,libsx.zadx_HR_IronCuffsFrontInventory)        
-        
-    ;UDEM.ApplyExpressionRaw(akActor,UDEM.CreateRandomExpression(true), strength = 100, openMouth=false, iPriority = 0)
 EndFunction
 
 string Function GetUserTextInput()
-    TextMenu.ResetMenu()
-    TextMenu.OpenMenu()
-    TextMenu.BlockUntilClosed()
-    return TextMenu.GetResultString()
+    return UDmain.GetUserTextInput()
 EndFunction
 
 Int Function GetUserListInput(string[] arrList)
-    ListMenu.ResetMenu()
-    ;ListMenu.SetPropertyStringA("appendEntries", arrList)
-    int loc_i = 0
-    while loc_i < arrList.length
-        ListMenu.AddEntryItem(arrList[loc_i])
-        loc_i+=1
-    endwhile
-    ListMenu.OpenMenu()
-    ListMenu.BlockUntilClosed()
-    return ListMenu.GetResultInt()
+    return UDmain.GetUserListInput(arrList)
 EndFunction
 
 float _startTime = 0.0

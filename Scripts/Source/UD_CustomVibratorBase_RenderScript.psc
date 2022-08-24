@@ -3,27 +3,27 @@ Scriptname UD_CustomVibratorBase_RenderScript extends UD_CustomDevice_RenderScri
 import UnforgivingDevicesMain
 
 ;Properties
-int     property     UD_VibDuration         = 60     auto ;duration of vibrations. -1 will make the vibrator vib forever (or until stopVibrating() is called)
-float     property     UD_ArousalMult         = 1.0    auto ;arousal multiplier, multiplies arousal which is adde while vib is on
-float     property     UD_OrgasmMult         = 1.0     auto ;orgasm multiplier, multiples orgasm rate which is applied
-int     Property     UD_VibStrength         = -1     auto ;Vib strength, if == -1, value will be set using keywords
-int     Property     UD_EdgingMode         = -1     auto ;Edging mode = 0 - normal, 1 - Edging only, 2 - Edging random    
-float     Property     UD_EdgingThreshold    = 0.75     auto ;used only in edgeMode == 1,2
-bool    Property    UD_Shocking            = False    auto ;change if plug should also shock actor when vibrate is called. If it can't vibrate, shock will still happen
-int        Property    UD_Chaos            = 0        auto ;plug will randomly change its strength and duration on every turn
+int     property     UD_VibDuration         = 60        auto ;duration of vibrations. -1 will make the vibrator vib forever (or until stopVibrating() is called)
+float   property     UD_ArousalMult         = 1.0       auto ;arousal multiplier, multiplies arousal which is adde while vib is on
+float   property     UD_OrgasmMult          = 1.0       auto ;orgasm multiplier, multiples orgasm rate which is applied
+int     Property     UD_VibStrength         = -1        auto ;Vib strength, if == -1, value will be set using keywords
+int     Property     UD_EdgingMode          = -1        auto ;Edging mode = 0 - normal, 1 - Edging only, 2 - Edging random    
+float   Property     UD_EdgingThreshold     = 0.75      auto ;used only in edgeMode == 1,2
+bool    Property     UD_Shocking            = False     auto ;change if plug should also shock actor when vibrate is called. If it can't vibrate, shock will still happen
+int     Property     UD_Chaos               = 0         auto ;plug will randomly change its strength and duration on every turn
 
 ;local variables
-int     _currentVibRemainingDuration = 0
-int     _forceStrength         =     -1
-int     _currentVibStrength =     0
-int     _forceDuration         =      0
-int     _currentEdgingMode     =     -1
-int     _forceEdgingMode     =     -1
-float     _appliedOrgasmRate     =     0.0
-float     _appliedArousalRate    =    0.0
-float     _appliedForcing     =     0.0
-int     _vsID                =     -1            ;current sound ID used to play vib sounds
-bool     _paused             =     false        ;on if vibrator is paused
+int     _currentVibRemainingDuration    =   0
+int     _forceStrength                  =   -1
+int     _currentVibStrength             =   0
+int     _forceDuration                  =   0
+int     _currentEdgingMode              =   -1
+int     _forceEdgingMode                =   -1
+float   _appliedOrgasmRate              =   0.0
+float   _appliedArousalRate             =   0.0
+float   _appliedForcing                 =   0.0
+int     _vsID                           =   -1           ;current sound ID used to play vib sounds
+bool    _paused                         =   false        ;on if vibrator is paused
 
 Function InitPost()
     parent.InitPost()
@@ -309,25 +309,23 @@ Function stopVibratingAndWait()
     endif
 EndFunction
 
-bool _forceMutex
 
-Function StartForceMutex()
-    while _forceMutex
+bool _manipMutex
+Function StartManipMutex()
+    while _manipMutex
         Utility.waitMenuMode(0.1)
     endwhile
-    _forceMutex = true
+    _manipMutex = true
 EndFunction
-Function StopForceMutex()
-    _forceMutex = false
-    if !isVibrating()
-        StorageUtil.AdjustIntValue(getWearer(),"UD_ActiveVib_Strength", -1*_currentVibStrength)
-    endif
+
+Function EndManipMutex()
+    _manipMutex = false
 EndFunction
 
 Function ForceStrength(int iStrenth)
     _forceStrength = iStrenth
     if isVibrating()
-        StartForceMutex()
+        StartManipMutex()
         StorageUtil.AdjustIntValue(getWearer(),"UD_ActiveVib_Strength", -1*_currentVibStrength)
         _currentVibStrength = _forceStrength
         StorageUtil.AdjustIntValue(getWearer(),"UD_ActiveVib_Strength", _currentVibStrength)
@@ -335,14 +333,14 @@ Function ForceStrength(int iStrenth)
             UpdateVibSound()
             UpdateOrgasmRate(getVibOrgasmRate(),_appliedForcing)
         endif
-        StopForceMutex()
+        EndManipMutex()
     endif
 EndFunction
 
 Function ForceModStrength(float fModifier)
     _forceStrength = Round(UD_VibStrength*fModifier)
     if isVibrating()
-        StartForceMutex()
+        StartManipMutex()
         StorageUtil.AdjustIntValue(getWearer(),"UD_ActiveVib_Strength", -1*_currentVibStrength)
         _currentVibStrength = _forceStrength
         StorageUtil.AdjustIntValue(getWearer(),"UD_ActiveVib_Strength", _currentVibStrength)
@@ -350,46 +348,54 @@ Function ForceModStrength(float fModifier)
             UpdateVibSound()
             UpdateOrgasmRate(getVibOrgasmRate(),_appliedForcing)
         endif
-        StopForceMutex()
+        EndManipMutex()
     endif
 EndFunction
 
 Function ForceDuration(int iDuration)
     if iDuration != 0
+        StartManipMutex()
         _forceDuration = iDuration
         if isVibrating()
             _currentVibRemainingDuration += _forceDuration
         endif
+        EndManipMutex()
     endif
 EndFunction
 
 Function ForceModDuration(float fModifier)
     if fModifier >= 0.1
+        StartManipMutex()
         _forceDuration = Round(UD_VibDuration*fModifier)
         if isVibrating()
             _currentVibRemainingDuration += _forceDuration
         endif
+        EndManipMutex()
     endif
 EndFunction
 
 Function addVibDuration(int iValue = 1)
-    if isVibrating()
+    if isVibrating() && _currentVibRemainingDuration > 0
+        StartManipMutex()
         _currentVibRemainingDuration += iValue
+        EndManipMutex()
     endif
 EndFunction
 
 Function removeVibDuration(int iValue = 1)
-    if isVibrating()
+    if isVibrating() && _currentVibRemainingDuration > 0
+        StartManipMutex()
         _currentVibRemainingDuration -= iValue
         if _currentVibRemainingDuration < 0
             _currentVibRemainingDuration = 0
         endif
+        EndManipMutex()
     endif
 EndFUnction
 
 Function addVibStrength(int iValue = 1)
     if isVibrating()
-        StartForceMutex()
+        StartManipMutex()
         StorageUtil.AdjustIntValue(getWearer(),"UD_ActiveVib_Strength", -1*_currentVibStrength)
         _currentVibStrength += iValue
         if _currentVibStrength > 100
@@ -400,34 +406,33 @@ Function addVibStrength(int iValue = 1)
             UpdateOrgasmRate(getVibOrgasmRate(),_appliedForcing)
             UpdateVibSound()
         endif
-        StopForceMutex()
+        EndManipMutex()
     endif
 EndFunction
 
 Function removeVibStrength(int iValue = 1)
     if isVibrating()
-        StartForceMutex()
+        StartManipMutex()
         StorageUtil.AdjustIntValue(getWearer(),"UD_ActiveVib_Strength", -1*_currentVibStrength)
         _currentVibStrength -= iValue
         if _currentVibStrength < 0
             _currentVibStrength = 0
+            stopVibrating()
         endif
         StorageUtil.AdjustIntValue(getWearer(),"UD_ActiveVib_Strength", _currentVibStrength)
         if !isPaused() && isVibrating()
             UpdateOrgasmRate(getVibOrgasmRate(),_appliedForcing)
             UpdateVibSound()
         endif
-        StopForceMutex()
+        EndManipMutex()
     endif
 EndFUnction
 
 Function forceEdgingMode(int iMode)
+    StartManipMutex()
     _forceEdgingMode = iMode
     _currentEdgingMode = _forceEdgingMode
-EndFunction
-
-float Function getVibArousalRate(float mult = 1.0)
-    return _currentVibStrength * UDCDmain.UD_ArousalMultiplier * UD_ArousalMult
+    EndManipMutex()
 EndFunction
 
 Function pauseVibFor(int iTime)
@@ -454,10 +459,6 @@ Function pauseVibFor(int iTime)
     _paused = false
 EndFunction
 
-float Function getVibOrgasmRate(float mult = 1.0)
-    return _currentVibStrength * mult * UDCDmain.UD_VibrationMultiplier * UD_OrgasmMult
-EndFunction
-
 Function UpdateOrgasmRate(float fOrgasmRate,float fOrgasmForcing)
     if isVibrating()
         removeOrgasmRate()
@@ -471,7 +472,7 @@ Function setOrgasmRate(float fOrgasmRate,float fOrgasmForcing)
     if (fOrgasmRate != _appliedOrgasmRate || fOrgasmForcing != _appliedForcing) && isVibrating()
         _appliedOrgasmRate = fOrgasmRate
         _appliedForcing = fOrgasmForcing
-        UDCDmain.UDOM.UpdateOrgasmRate(getWearer(),_appliedOrgasmRate,_appliedForcing)
+        UDOM.UpdateOrgasmRate(getWearer(),_appliedOrgasmRate,_appliedForcing)
     endif
 EndFunction
 
@@ -483,7 +484,7 @@ Function removeOrgasmRate()
         float loc_appliedForcing    = _appliedForcing
         _appliedForcing = 0.0
         
-        UDCDmain.UDOM.removeOrgasmRate(getWearer(),loc_appliedOrgasmRate,loc_appliedForcing)
+        UDOM.UpdateOrgasmRate(getWearer(),-1*loc_appliedOrgasmRate,-1*loc_appliedForcing)
     endif
 EndFunction
 
@@ -495,7 +496,7 @@ EndFunction
 Function setArousalRate(float fArousalRate)
     if fArousalRate != _appliedArousalRate 
         _appliedArousalRate = fArousalRate
-        UDCDmain.UDOM.UpdateArousalRate(getWearer() ,fArousalRate)
+        UDOM.UpdateArousalRate(getWearer() ,fArousalRate)
     endif
 EndFunction
 
@@ -503,7 +504,7 @@ Function removeArousalRate()
     if _appliedArousalRate != 0
         float loc_appliedArousalRate = _appliedArousalRate
         _appliedArousalRate = 0
-        UDCDmain.UDOM.UpdateArousalRate(getWearer() ,-1*loc_appliedArousalRate)
+        UDOM.UpdateArousalRate(getWearer() ,-1*loc_appliedArousalRate)
     endif
 EndFunction
 
@@ -522,7 +523,14 @@ Sound Function getVibrationSound()
 EndFunction
 
 ;custom function made to improve on DD function VibrateEffect and better implement it in to my mod
+bool Property VibLoopOn = false auto hidden
 Function vibrate(float fDurationMult = 1.0)
+    ;mutex
+    if VibLoopOn
+        return
+    endif
+    VibLoopOn = true
+    
     if isVibrating()
         return
     endif
@@ -559,7 +567,7 @@ Function vibrate(float fDurationMult = 1.0)
     endif
     
     if UDmain.TraceAllowed()    
-        UDCDmain.Log("Vibrate called for " + getDeviceName() + " on " + getWearerName() + ", duration: " + _currentVibRemainingDuration + ", strength: " + _currentVibStrength + ", edging: " + _currentEdgingMode)
+        UDmain.Log("Vibrate called for " + getDeviceName() + " on " + getWearerName() + ", duration: " + _currentVibRemainingDuration + ", strength: " + _currentVibStrength + ", edging: " + _currentEdgingMode)
     endif
     
     ;/
@@ -574,12 +582,12 @@ Function vibrate(float fDurationMult = 1.0)
     StorageUtil.AdjustIntValue(getWearer(),"UD_ActiveVib_Strength", _currentVibStrength)
     
     
-    UDCDmain.SendModEvent("DeviceVibrateEffectStart", getWearerName(), getCurrentZadVibStrenth())
+    UDmain.SendModEvent("DeviceVibrateEffectStart", getWearerName(), getCurrentZadVibStrenth())
         
     if WearerIsPlayer()
-        UDCDmain.Print(getDeviceName() + " starts vibrating "+ getPlugsVibrationStrengthString(getCurrentZadVibStrenth()) +"!",3)
+        UDmain.Print(getDeviceName() + " starts vibrating "+ getPlugsVibrationStrengthString(getCurrentZadVibStrenth()) +"!",2)
     elseif UDCDmain.AllowNPCMessage(GetWearer())
-        UDCDmain.Print(getWearerName() + "s " + getDeviceName() + " starts vibrating "+ getPlugsVibrationStrengthString(getCurrentZadVibStrenth()) +"!",3)
+        UDmain.Print(getWearerName() + "s " + getDeviceName() + " starts vibrating "+ getPlugsVibrationStrengthString(getCurrentZadVibStrenth()) +"!",3)
     endif
 
     ; Initialize Sounds
@@ -604,10 +612,6 @@ Function vibrate(float fDurationMult = 1.0)
             endif
         endif
         
-        ;if isVibrating() && !_paused
-            ;libs.UpdateExposure(getWearer(), Round(getVibArousalRate()), skipMultiplier=true)
-        ;endif
-        
         if isVibrating() && !_paused
             ProccesVibEdge()
         endif
@@ -629,7 +633,7 @@ Function vibrate(float fDurationMult = 1.0)
         
     if !_paused
         if WearerIsPlayer()
-            UDCDmain.Print(getDeviceName() + " stops vibrating.",3)
+            UDCDmain.Print(getDeviceName() + " stops vibrating.",2)
         elseif UDCDmain.AllowNPCMessage(GetWearer())
             UDCDmain.Print(getWearerName() + "s " + getDeviceName() + " stops vibrating.",3)
         endif
@@ -649,16 +653,17 @@ Function vibrate(float fDurationMult = 1.0)
     _forceEdgingMode = -1
     _currentVibStrength = 0
     OnVibrationEnd()
+    VibLoopOn = false
 EndFunction
 
 Function ProccesVibEdge()
     if isVibrating() && !_paused
         if _currentEdgingMode == 1
-            if UDCDmain.UDOM.getOrgasmProgressPerc(getWearer()) > UD_EdgingThreshold
+            if UDOM.getOrgasmProgressPerc(getWearer()) > UD_EdgingThreshold
                 if WearerIsPlayer()
                     UDCDmain.Print(getDeviceName() + " suddenly stops vibrating!",3)
                 endif
-                while UDCDmain.UDOM.getOrgasmProgressPerc(getWearer()) > UD_EdgingThreshold*0.95
+                while UDOM.getOrgasmProgressPerc(getWearer()) > UD_EdgingThreshold*0.95
                     pauseVibFor(10)
                     Utility.wait(0.25)
                 endwhile
@@ -667,7 +672,7 @@ Function ProccesVibEdge()
                 endif
             endif
         elseif _currentEdgingMode == 2
-            if UDCDmain.UDOM.getOrgasmProgressPerc(getWearer()) > UD_EdgingThreshold
+            if UDOM.getOrgasmProgressPerc(getWearer()) > UD_EdgingThreshold
                 if Utility.randomInt() < iRange(_currentVibStrength,40,80)
                     if WearerIsPlayer()
                         UDCDmain.Print(getDeviceName() + " suddenly stops vibrating!",3)
@@ -689,7 +694,7 @@ EndFunction
 
 ;vibrator can't be currently vibrating, needs to be able to vibrate AND at least 25% of the cooldown have to pass 
 bool Function canBeActivated()
-    if !isVibrating() && (canVibrate() || UD_Shocking )&& getRelativeElapsedCooldownTime() >= 0.25
+    if !isVibrating() && (canVibrate() || UD_Shocking) && getRelativeElapsedCooldownTime() >= 0.25
         return true
     else
         return false
@@ -705,7 +710,12 @@ Function OnVibrationStart()
 EndFunction
 Function OnVibrationEnd()
 EndFunction
-
+float Function getVibOrgasmRate(float afMult = 1.0)
+    return _currentVibStrength*afMult*UDCDmain.UD_VibrationMultiplier*UD_OrgasmMult
+EndFunction
+float Function getVibArousalRate(float afMult = 1.0)
+    return _currentVibStrength*afMult*UDCDmain.UD_ArousalMultiplier*UD_ArousalMult
+EndFunction
 ;============================================================================================================================
 ;unused override function, theese are from base script. Extending different script means you also have to add their overrride functions                                                
 ;theese function should be on every object instance, as not having them may cause multiple function calls to default class
@@ -836,4 +846,7 @@ int Function getArousalRate()
 EndFunction
 float Function getStruggleOrgasmRate()
     return parent.getStruggleOrgasmRate()
+EndFunction
+Float[] Function GetCurrentMinigameExpression()
+	return parent.GetCurrentMinigameExpression()
 EndFunction

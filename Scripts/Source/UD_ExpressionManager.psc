@@ -3,68 +3,67 @@ scriptname UD_ExpressionManager extends Quest
 import MfgConsoleFunc
 import sslBaseExpression
 import UnforgivingDevicesMain
-;/ ====Sexlab Expression Construct====
-All number are floats in range 0.0-1.0
-Only exception is expression[30] whre it needs whole number in range 0-16
-
-    =====================Phonems=====================
-    
-    expression[ 0] = Aah     [ 0.0 , 1.0 ]
-    expression[ 1] = BigAah [ 0.0 , 1.0 ]
-    expression[ 2] = BMP    [ 0.0 , 1.0 ]
-    expression[ 3] = ChJSh    [ 0.0 , 1.0 ]
-    expression[ 4] = DST    [ 0.0 , 1.0 ]
-    expression[ 5] = Eee    [ 0.0 , 1.0 ]
-    expression[ 6] = Eh        [ 0.0 , 1.0 ]
-    expression[ 7] = FV        [ 0.0 , 1.0 ]
-    expression[ 8] = I        [ 0.0 , 1.0 ]
-    expression[ 9] = K        [ 0.0 , 1.0 ]
-    expression[10] = N        [ 0.0 , 1.0 ]
-    expression[11] = Oh        [ 0.0 , 1.0 ]
-    expression[12] = OohQ    [ 0.0 , 1.0 ]
-    expression[13] = R        [ 0.0 , 1.0 ]
-    expression[14] = Th        [ 0.0 , 1.0 ]
-    expression[15] = W        [ 0.0 , 1.0 ]
-    
-    =====================Modifiers=====================
-    
-    expression[16] = BlinkLeft      [ 0.0 , 1.0 ]     !Warning, using this will prevent the eye from blinking! 
-    expression[17] = BlinkRight     [ 0.0 , 1.0 ]     !Warning, using this will prevent the eye from blinking! 
-    expression[18] = BrowDownLeft    [ 0.0 , 1.0 ]
-    expression[19] = BrowDownRight  [ 0.0 , 1.0 ]
-    expression[20] = BrowInLeft     [ 0.0 , 1.0 ]
-    expression[21] = BrowInRight    [ 0.0 , 1.0 ]
-    expression[22] = BrowUpLeft     [ 0.0 , 1.0 ]
-    expression[23] = BrowUpRight    [ 0.0 , 1.0 ]
-    expression[24] = LookDown       [ 0.0 , 1.0 ]
-    expression[25] = LookLeft       [ 0.0 , 1.0 ]
-    expression[26] = LookRight      [ 0.0 , 1.0 ]
-    expression[27] = LookUp         [ 0.0 , 1.0 ]
-    expression[28] = SquintLeft     [ 0.0 , 1.0 ]
-    expression[29] = SquintRight    [ 0.0 , 1.0 ]
-    
-    =====================Expression=====================
-    
-    expression[30] =        X: Selected expression, see below [ 0 , 16 ]
-                         0: Dialogue Anger
-                         1: Dialogue Fear
-                         2: Dialogue Happy
-                         3: Dialogue Sad
-                         4: Dialogue Surprise
-                         5: Dialogue Puzzled
-                         6: Dialogue Disgusted
-                         7: Mood Neutral
-                         8: Mood Anger
-                         9: Mood Fear
-                        10: Mood Happy
-                        11: Mood Sad
-                        12: Mood Surprise
-                        13: Mood Puzzled
-                        14: Mood Disgusted
-                        15: Combat Anger
-                        16: Combat Shout - this opens mouth like phonem, try to not use this unless you have good reason
-    expression[31] = Strength of choosen expression (expression[30]) [ 0.0 , 1.0 ]
-/;
+;====Sexlab Expression Construct====
+;All number are floats in range 0.0-1.0
+;Only exception is expression[30] whre it needs whole number in range 0-16
+;
+;    =====================Phonems=====================
+;    
+;    expression[ 0] = Aah     [ 0.0 , 1.0 ]
+;    expression[ 1] = BigAah  [ 0.0 , 1.0 ]
+;    expression[ 2] = BMP     [ 0.0 , 1.0 ]
+;    expression[ 3] = ChJSh   [ 0.0 , 1.0 ]
+;    expression[ 4] = DST     [ 0.0 , 1.0 ]
+;    expression[ 5] = Eee     [ 0.0 , 1.0 ]
+;    expression[ 6] = Eh      [ 0.0 , 1.0 ]
+;    expression[ 7] = FV      [ 0.0 , 1.0 ]
+;    expression[ 8] = I       [ 0.0 , 1.0 ]
+;    expression[ 9] = K       [ 0.0 , 1.0 ]
+;    expression[10] = N       [ 0.0 , 1.0 ]
+;    expression[11] = Oh      [ 0.0 , 1.0 ]
+;    expression[12] = OohQ    [ 0.0 , 1.0 ]
+;    expression[13] = R       [ 0.0 , 1.0 ]
+;    expression[14] = Th      [ 0.0 , 1.0 ]
+;    expression[15] = W       [ 0.0 , 1.0 ]
+;    
+;    =====================Modifiers=====================
+;    
+;    expression[16] = BlinkLeft      [ 0.0 , 1.0 ]     !Warning, using this will prevent the eye from blinking! 
+;    expression[17] = BlinkRight     [ 0.0 , 1.0 ]     !Warning, using this will prevent the eye from blinking! 
+;    expression[18] = BrowDownLeft   [ 0.0 , 1.0 ]
+;    expression[19] = BrowDownRight  [ 0.0 , 1.0 ]
+;    expression[20] = BrowInLeft     [ 0.0 , 1.0 ]
+;    expression[21] = BrowInRight    [ 0.0 , 1.0 ]
+;    expression[22] = BrowUpLeft     [ 0.0 , 1.0 ]
+;    expression[23] = BrowUpRight    [ 0.0 , 1.0 ]
+;    expression[24] = LookDown       [ 0.0 , 1.0 ]
+;    expression[25] = LookLeft       [ 0.0 , 1.0 ]
+;    expression[26] = LookRight      [ 0.0 , 1.0 ]
+;    expression[27] = LookUp         [ 0.0 , 1.0 ]
+;    expression[28] = SquintLeft     [ 0.0 , 1.0 ]
+;    expression[29] = SquintRight    [ 0.0 , 1.0 ]
+;    
+;    =====================Expression=====================
+;    
+;    expression[30] =     X: Selected expression, see below [ 0 , 16 ]
+;                         0: Dialogue Anger
+;                         1: Dialogue Fear
+;                         2: Dialogue Happy
+;                         3: Dialogue Sad
+;                         4: Dialogue Surprise
+;                         5: Dialogue Puzzled
+;                         6: Dialogue Disgusted
+;                         7: Mood Neutral
+;                         8: Mood Anger
+;                         9: Mood Fear
+;                        10: Mood Happy
+;                        11: Mood Sad
+;                        12: Mood Surprise
+;                        13: Mood Puzzled
+;                        14: Mood Disgusted
+;                        15: Combat Anger
+;                        16: Combat Shout - this opens mouth like phonem, try to not use this unless you have good reason
+;    expression[31] = Strength of choosen expression (expression[30]) [ 0.0 , 1.0 ]
 
 
 UDCustomDeviceMain Property UDCDmain auto
@@ -265,17 +264,9 @@ Float[] Function CreateRandomExpression(bool bExport = false)
         loc_strres += "loc_expression["+loc_i+"] = "+loc_expression[loc_i] + "\n"
         loc_i += 1
     endwhile
+    loc_expression[17] = loc_expression[16] ;same blink modifier, so not only one eye blink
     loc_expression[loc_expression.length - 2] = Utility.randomInt(0,15) ;don't choose Combat shout, it looks stoopid
-    loc_strres += "loc_expression["+(loc_expression.length - 2)+"] = "+loc_expression[loc_expression.length - 2] + "\n"
     loc_expression[loc_expression.length - 1] = Utility.randomFloat(0.0,1.0)
-    loc_strres += "loc_expression["+(loc_expression.length - 1)+"] = "+loc_expression[loc_expression.length - 1] + "\n"
-    if bExport
-        if !MiscUtil.WriteToFile("data/UDRandomExpressions.txt", loc_strres, append = true)
-            
-        ;else
-            UDCDmain.Print("ERROR: Cant find UDRandomExpressions.txt")
-        endif
-    endif
     return loc_expression
 EndFunction
 
@@ -589,6 +580,27 @@ Function RemoveGagEffect(actor akActor)
     _ExpressionManip_Mutex = false
 EndFunction
 
+State DDExpressionSystemInstalled
+    bool Function ApplyExpression(Actor akActor, sslBaseExpression expression, int strength, bool openMouth=false,int iPriority = 0)
+        return libsp.ApplyExpression_v2(akActor, expression, iPriority, strength, openMouth)
+    EndFunction
+    bool Function ApplyExpressionRaw(Actor akActor, float[] expression, int strength, bool openMouth=false,int iPriority = 0)
+        return libsp.ApplyExpressionRaw(akActor, expression, iPriority, strength, openMouth)
+    EndFunction
+    bool Function ResetExpression(actor akActor, sslBaseExpression expression,int iPriority = 0)
+        return libsp.ResetExpressionRaw(akActor,iPriority)
+    EndFunction
+    bool Function ResetExpressionRaw(actor akActor, int iPriority = 0)
+        return libsp.ResetExpressionRaw(akActor,iPriority)
+    EndFunction
+    Function ApplyGagEffect(actor akActor)    
+        libsp.ApplyGagEffect(akActor)
+    EndFunction
+    Function RemoveGagEffect(actor akActor)
+        libsp.RemoveGagEffect(akActor)
+    EndFunction
+EndState
+
 float[] Function ApplyGagEffectToPreset(Actor akActor,Float[] preset)
     float[] loc_preset = Utility.CreateFloatArray(preset.length)
     
@@ -684,37 +696,19 @@ endFunction
 Float[] Function GetPrebuildExpression_Happy1()
     float[] loc_res = CreateEmptyExpression()
     ;phonems
-    loc_res[ 0] = 0.0
-    loc_res[ 1] = 0.0
-    loc_res[ 2] = 0.0
-    loc_res[ 3] = 0.0
-    loc_res[ 4] = 0.0
     loc_res[ 5] = 0.079
     loc_res[ 6] = 0.284
     loc_res[ 7] = 0.237
     loc_res[ 8] = 0.055
-    loc_res[ 9] = 0.0
-    loc_res[10] = 0.0
     loc_res[11] = 0.192
-    loc_res[12] = 0.0
     loc_res[13] = 0.03
     loc_res[14] = 0.115
     ;modifiers
-    loc_res[15] = 0.0
-    loc_res[16] = 0.0
-    loc_res[17] = 0.0
-    loc_res[18] = 0.0
-    loc_res[19] = 0.0
     loc_res[20] = 0.104
-    loc_res[21] = 0.0
     loc_res[22] = 0.212
     loc_res[23] = 0.078
     loc_res[24] = 0.129
-    loc_res[25] = 0.0
-    loc_res[26] = 0.0
     loc_res[27] = 0.108
-    loc_res[28] = 0.0
-    loc_res[29] = 0.0
     ;expression
     loc_res[30] = 10.0
     loc_res[31] = 0.729
@@ -724,36 +718,20 @@ EndFunction
 Float[] Function GetPrebuildExpression_Concetrated1()
     float[] loc_res = CreateEmptyExpression()
     ;phonems
-    loc_res[ 0] = 0.0
-    loc_res[ 1] = 0.0
     loc_res[ 2] = 0.12
     loc_res[ 3] = 0.24
-    loc_res[ 4] = 0.0
-    loc_res[ 5] = 0.0
-    loc_res[ 6] = 0.0
     loc_res[ 7] = 0.08
     loc_res[ 8] = 0.08
     loc_res[ 9] = 0.14
-    loc_res[10] = 0.0
-    loc_res[11] = 0.0
-    loc_res[12] = 0.0
-    loc_res[13] = 0.0
     loc_res[14] = 0.08
-    loc_res[15] = 0.0
     ;modifiers
-    loc_res[16] = 0.0
-    loc_res[17] = 0.0
     loc_res[18] = 0.18
     loc_res[19] = 0.29
-    loc_res[20] = 0.0
     loc_res[21] = 0.06
     loc_res[22] = 0.19
-    loc_res[23] = 0.0
-    loc_res[24] = 0.0
     loc_res[25] = 0.27
     loc_res[26] = 0.26
     loc_res[27] = 0.29
-    loc_res[28] = 0.0
     loc_res[29] = 0.01
     ;expression
     loc_res[30] = 4
@@ -765,34 +743,21 @@ EndFunction
 Float[] Function GetPrebuildExpression_Angry1()
     float[] loc_res = CreateEmptyExpression()
     ;phonems
-    loc_res[ 0] = 0.0
     loc_res[ 1] = 0.174
-    loc_res[ 2] = 0.0
     loc_res[ 3] = 0.122
     loc_res[ 4] = 0.08
-    loc_res[ 5] = 0.0
     loc_res[ 6] = 0.281
-    loc_res[ 7] = 0.0
     loc_res[ 8] = 0.053
     loc_res[ 9] = 0.004
     loc_res[10] = 0.145
     loc_res[11] = 0.073
-    loc_res[12] = 0.0
-    loc_res[13] = 0.0
     loc_res[14] = 0.277
-    loc_res[15] = 0.0
     ;modifiers
-    loc_res[16] = 0.0
-    loc_res[17] = 0.0
-    loc_res[18] = 0.0
     loc_res[19] = 0.144
     loc_res[20] = 0.245
     loc_res[21] = 0.23
-    loc_res[22] = 0.0
-    loc_res[23] = 0.0
     loc_res[24] = 0.269
     loc_res[25] = 0.067
-    loc_res[26] = 0.0
     loc_res[27] = 0.186
     loc_res[28] = 0.247
     loc_res[29] = 0.103
@@ -810,33 +775,19 @@ Float[] Function GetPrebuildExpression_Tired1()
     loc_res[ 1] = 0.246
     loc_res[ 2] = 0.181
     loc_res[ 3] = 0.226
-    loc_res[ 4] = 0.0
-    loc_res[ 5] = 0.0
-    loc_res[ 6] = 0.0
     loc_res[ 7] = 0.06
     loc_res[ 8] = 0.216
-    loc_res[ 9] = 0.0
     loc_res[10] = 0.098
-    loc_res[11] = 0.0
     loc_res[12] = 0.122
     loc_res[13] = 0.17
     loc_res[14] = 0.094
     loc_res[15] = 0.071
     ;modifiers
-    loc_res[16] = 0.0
-    loc_res[17] = 0.0
-    loc_res[18] = 0.0
-    loc_res[19] = 0.0
-    loc_res[20] = 0.0
-    loc_res[21] = 0.0
     loc_res[22] = 0.213
     loc_res[23] = 0.187
-    loc_res[24] = 0.0
     loc_res[25] = 0.092
     loc_res[26] = 0.205
-    loc_res[27] = 0.0
     loc_res[28] = 0.274
-    loc_res[29] = 0.0
     ;expression
     loc_res[30] = 3
     loc_res[31] = 0.641
@@ -846,34 +797,16 @@ EndFunction
 
 Float[] Function GetPrebuildExpression_Horny1()    
     float[] loc_res = CreateEmptyExpression()
-    loc_res[ 0] = 0.0
-    loc_res[ 1] = 0.0
-    loc_res[ 2] = 0.0
-    loc_res[ 3] = 0.0
-    loc_res[ 4] = 0.0
-    loc_res[ 5] = 0.0
-    loc_res[ 6] = 0.0
-    loc_res[ 7] = 0.0
-    loc_res[ 8] = 0.0
-    loc_res[ 9] = 0.0
     loc_res[10] = 0.5
-    loc_res[11] = 0.0
-    loc_res[12] = 0.0
-    loc_res[13] = 0.0
-    loc_res[14] = 0.0
-    loc_res[15] = 0.0
     loc_res[16] = 0.10
     loc_res[17] = 0.10
     loc_res[18] = 0.25
     loc_res[19] = 0.25
     loc_res[20] = 0.25
     loc_res[21] = 0.25
-    loc_res[22] = 0.0
-    loc_res[23] = 0.0
     loc_res[24] = 0.30
     loc_res[25] = 0.5
     loc_res[26] = 0.5
-    loc_res[27] = 0.0
     loc_res[28] = 0.25
     loc_res[29] = 0.25
     loc_res[30] = 13.0
@@ -884,35 +817,12 @@ EndFunction
 Float[] Function GetPrebuildExpression_Orgasm1()
     float[] loc_res = CreateEmptyExpression()
     loc_res[ 0] = 0.5
-    loc_res[ 1] = 0.0
-    loc_res[ 2] = 0.0
-    loc_res[ 3] = 0.0
-    loc_res[ 4] = 0.0
-    loc_res[ 5] = 0.0
-    loc_res[ 6] = 0.0
-    loc_res[ 7] = 0.0
-    loc_res[ 8] = 0.0
-    loc_res[ 9] = 0.0
-    loc_res[10] = 0.0
     loc_res[11] = 0.5
-    loc_res[12] = 0.0
-    loc_res[13] = 0.0
-    loc_res[14] = 0.0
-    loc_res[15] = 0.0
     loc_res[16] = 0.2
     loc_res[17] = 0.2
-    loc_res[18] = 0.0
-    loc_res[19] = 0.0
-    loc_res[20] = 0.0
-    loc_res[21] = 0.0
     loc_res[22] = 0.4
     loc_res[23] = 0.4
-    loc_res[24] = 0.0
-    loc_res[25] = 0.0
-    loc_res[26] = 0.0
     loc_res[27] = 0.75
-    loc_res[28] = 0.0
-    loc_res[29] = 0.0
     loc_res[30] = 10.0
     loc_res[31] = 0.5
     return loc_res
@@ -920,37 +830,36 @@ EndFunction
 
 Float[] Function GetPrebuildExpression_Orgasm2()
     float[] loc_res = CreateEmptyExpression()
-    loc_res[ 0] = 0.0
-    loc_res[ 1] = 0.0
-    loc_res[ 2] = 0.0
-    loc_res[ 3] = 0.0
-    loc_res[ 4] = 0.0
     loc_res[ 5] = 0.079
     loc_res[ 6] = 0.284
     loc_res[ 7] = 0.237
     loc_res[ 8] = 0.055
-    loc_res[ 9] = 0.0
-    loc_res[10] = 0.0
     loc_res[11] = 0.192
-    loc_res[12] = 0.0
     loc_res[13] = 0.03
     loc_res[14] = 0.115
-    loc_res[15] = 0.0
     loc_res[16] = 0.2
     loc_res[17] = 0.2
-    loc_res[18] = 0.0
-    loc_res[19] = 0.0
-    loc_res[20] = 0.0
-    loc_res[21] = 0.0
     loc_res[22] = 0.4
     loc_res[23] = 0.4
-    loc_res[24] = 0.0
-    loc_res[25] = 0.0
-    loc_res[26] = 0.0
     loc_res[27] = 0.75
-    loc_res[28] = 0.0
-    loc_res[29] = 0.0
     loc_res[30] = 10.0
     loc_res[31] = 0.729
+    return loc_res
+EndFunction
+
+Float[] Function GetPrebuildExpression_Orgasm3()
+    float[] loc_res = CreateEmptyExpression()
+    loc_res[ 5] = 0.079
+    loc_res[ 6] = 0.284
+    loc_res[ 7] = 0.237
+    loc_res[ 8] = 0.055
+    loc_res[11] = 0.192
+    loc_res[13] = 0.03
+    loc_res[14] = 0.115
+    loc_res[16] = 0.17
+    loc_res[17] = 0.17
+    loc_res[22] = 0.28
+    loc_res[30] = 11.0
+    loc_res[31] = 0.9
     return loc_res
 EndFunction

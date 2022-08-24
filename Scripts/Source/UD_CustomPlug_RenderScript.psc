@@ -45,9 +45,9 @@ bool Function struggleMinigame(int type = -1)
     else
         unlockRestrain()
         if WearerIsPlayer()
-            debug.notification("You succefully forced out " + deviceInventory.getName())
+            UDmain.Print("You succefully forced out " + deviceInventory.getName(),1)
         elseif WearerIsFollower()
-            debug.notification(getWearerName() + "s "+ getDeviceName() +" got removed!")
+            UDmain.Print(getWearerName() + "s "+ getDeviceName() +" got removed!",1)
         endif
     endif
     return true
@@ -59,9 +59,9 @@ bool Function struggleMinigameWH(Actor akSource)
     else
         unlockRestrain()
         if WearerIsPlayer()
-            debug.notification("With help of "+ getHelperName() +", you succefully forced out " + deviceInventory.getName() + " !")
+            UDmain.Print("With help of "+ getHelperName() +", you succefully forced out " + deviceInventory.getName() + " !",1)
         elseif WearerIsFollower()
-            debug.notification(getWearerName() + "s "+ getDeviceName() +" got removed!")
+            UDmain.Print(getWearerName() + "s "+ getDeviceName() +" got removed!",1)
         endif
     endif
     return true
@@ -112,9 +112,7 @@ int Function getPlugType()
     EndIf
 EndFunction
 
-int Function getArousalRate()
-    return parent.getArousalRate() + 10
-EndFunction
+
 
 bool forceOutPlugMinigame_on = false
 Function forceOutPlugMinigame()
@@ -153,7 +151,7 @@ Function forceOutPlugMinigameWH(Actor akHelper)
 EndFunction
 
 Function updateWidget(bool force = false)
-    if forceOutPlugMinigame_on
+    if forceOutPlugMinigame_on && PlayerInMinigame() && UDCDmain.UD_UseWidget && UD_UseWidget && UD_AllowWidgetUpdate
         setWidgetVal(getRelativeDurability(),force)    
     else
         parent.updateWidget(force)
@@ -200,7 +198,12 @@ EndFunction
 Function OnVibrationEnd()
     parent.OnVibrationStart()
 EndFunction
-
+float Function getVibOrgasmRate(float afMult = 1.0)
+    return parent.getVibOrgasmRate(afMult)
+EndFunction
+float Function getVibArousalRate(float afMult = 1.0)
+    return parent.getVibArousalRate(afMult)
+EndFunction
 ;============================================================================================================================
 ;unused override function, theese are from base script. Extending different script means you also have to add their overrride functions                                                
 ;theese function should be on every object instance, as not having them may cause multiple function calls to default class
@@ -328,4 +331,10 @@ bool Function proccesSpecialMenuWH(Actor akSource,int msgChoice)
 EndFunction
 float Function getStruggleOrgasmRate()
     return parent.getStruggleOrgasmRate()
+EndFunction
+int Function getArousalRate()
+    return parent.getArousalRate()
+EndFunction
+Float[] Function GetCurrentMinigameExpression()
+	return parent.GetCurrentMinigameExpression()
 EndFunction

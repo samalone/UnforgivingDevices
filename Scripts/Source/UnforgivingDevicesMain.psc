@@ -52,6 +52,15 @@ UD_MenuChecker                      Property UDMC
         return UD_UtilityQuest as UD_MenuChecker
     EndFunction
 EndProperty
+UD_SkillManager_Script              Property UDSKILL
+    UD_SkillManager_Script Function get()
+        return (UDCDmain as Quest) as UD_SkillManager_Script
+    EndFunction
+EndProperty
+
+;UI menus
+UITextEntryMenu Property TextMenu auto
+UIListMenu      Property ListMenu auto
 
 bool property lockMCM                   = False     auto hidden
 bool property DebugMod                  = False     auto hidden conditional
@@ -100,7 +109,7 @@ bool Property OSLArousedInstalled       = false auto
 bool Property ConsoleUtilInstalled      = false auto
 bool Property SlaveTatsInstalled        = false auto
 bool Property OrdinatorInstalled        = false auto
-
+bool Property ZadExpressionSystemInstalled = false auto
 bool Function UDReady()
     return Ready
 EndFunction
@@ -178,16 +187,14 @@ Event OnInit()
     Utility.wait(5.0)
     RegisterForModEvent("UD_VibEvent","EventVib")
     RegisterForSingleUpdate(0.1)
-    CheckPatchesOrder()
 EndEvent
-
 
 Function OnGameReload()
     if !Ready
         Utility.waitMenuMode(2.5)
     endif
     
-    Utility.waitMenuMode(2.5)
+    Utility.waitMenuMode(3.5)
         
     CLog("OnGameReload() called! - Updating Unforgiving Devices...")
     
@@ -211,6 +218,8 @@ Function OnGameReload()
     UDEM.Update()
     
     UDNPCM.GameUpdate()
+    
+    UDLLP.Update()
     
     if UDAM.Ready
         UDAM.Update()
@@ -263,16 +272,25 @@ Function Update()
         Error("UDMM set to "+UDMM)
     endif
     
+    Quest loc_DDexpressionQuest = GetMeMyForm(0x000800,"Devious Devices - Integration.esm") as Quest
+    if !ZadExpressionSystemInstalled && loc_DDexpressionQuest
+        Info("ZAD Expression System detected: switching...")
+        ZadExpressionSystemInstalled = True
+        if !libs.ExpLibs
+            libs.ExpLibs = loc_DDexpressionQuest as zadexpressionlibs
+        endif
+        UDEM.GoToState("DDExpressionSystemInstalled") 
+        Info("ZAD Expression System detected: DONE")        
+    endif
+    
     if !Ready
         Ready = true
-        CLog("Detected that UD is not ready. Changing state to ready.")
+        Info("Detected that UD is not ready. Changing state to ready.")
     endif
     
     CheckOptionalMods()
     CheckPatchesOrder()
 EndFunction
-
-
 
 Function CheckOptionalMods()
     If ModInstalled("ZaZAnimationPack.esm")
@@ -392,14 +410,9 @@ Function CLog(String msg)
     endif
 EndFunction
 
-;only use for debugging
-Function DCLog(String msg) global
-    ConsoleUtil.PrintMessage("[UD,DEBUG,T="+Utility.GetCurrentRealTime()+"]: " + msg)
-EndFunction
-
-int Property PrintLevel = 3 auto
+int Property UD_PrintLevel = 3 auto
 Function Print(String msg,int iLevel = 1,bool bLog = false)
-    if (iRange(iLevel,1,3) <= PrintLevel)
+    if (iRange(iLevel,0,3) <= UD_PrintLevel)
         debug.notification(msg)
         if bLog && TraceAllowed(); || DebugMod    
             Log("Print -> " + msg)
@@ -414,13 +427,6 @@ Function Error(String msg)
     endif
 EndFunction
 
-;global error function. Ignore safety in sake of usebality
-Function GError(String msg) global
-    string loc_msg = "[UD,!ERROR!,T="+Utility.GetCurrentRealTime()+"]: " + msg
-    debug.trace(loc_msg)
-    ConsoleUtil.PrintMessage(loc_msg)
-EndFunction
-
 Function Warning(String msg)
     string loc_msg = "[UD,WARNING,T="+Utility.GetCurrentRealTime()+"]: " + msg
     debug.trace(loc_msg)
@@ -429,24 +435,12 @@ Function Warning(String msg)
     endif
 EndFunction
 
-Function GWarning(String msg) global
-    string loc_msg = "[UD,WARNING,T="+Utility.GetCurrentRealTime()+"]: " + msg
-    debug.trace(loc_msg)
-    ConsoleUtil.PrintMessage(loc_msg)
-EndFunction
-
 Function Info(String msg)
     string loc_msg = "[UD,INFO,T="+Utility.GetCurrentRealTime()+"]: " + msg
     debug.trace(loc_msg)
     if ConsoleUtilInstalled ;print to console
         ConsoleUtil.PrintMessage(loc_msg)
     endif
-EndFunction
-
-Function GInfo(String msg) global
-    string loc_msg = "[UD,INFO,T="+Utility.GetCurrentRealTime()+"]: " + msg
-    debug.trace(loc_msg)
-    ConsoleUtil.PrintMessage(loc_msg)
 EndFunction
 
 bool Function ActorIsFollower(Actor akActor)
@@ -485,7 +479,9 @@ bool Function TraceAllowed()
     return (LogLevel > 0)
 EndFunction
 
-
+bool Function ActorIsPlayer(Actor akActor)
+    return akActor == Player
+EndFunction
 
 ;=======================================================================
 ;                            GLOBAL FUNCTIONS
@@ -526,10 +522,6 @@ EndFunction
 
 bool Function GActorIsPlayer(Actor akActor) global
     return akActor == Game.getPlayer()
-EndFunction
-
-bool Function ActorIsPlayer(Actor akActor)
-    return akActor == Player
 EndFunction
 
 string Function GetActorName(Actor akActor) global
@@ -732,6 +724,20 @@ Int Function ToUnsig(Int iValue) global
     return iValue
 EndFunction
 
+Int Function iUnsig(Int aiValue) global
+    if aiValue < 0
+        return 0
+    endif
+    return aiValue
+EndFunction
+
+Float Function fUnsig(float afValue) global
+    if afValue < 0.0
+        return 0.0
+    endif
+    return afValue
+EndFunction
+
 Function ShowMessageBox(string strText) global
     String[] loc_lines = StringUtil.split(strText,"\n")
     int loc_linesNum = loc_lines.length
@@ -765,6 +771,30 @@ Function ShowMessageBox(string strText) global
     endwhile
 EndFunction
 
+;only use for debugging
+Function DCLog(String msg) global
+    ConsoleUtil.PrintMessage("[UD,DEBUG,T="+Utility.GetCurrentRealTime()+"]: " + msg)
+EndFunction
+
+Function GInfo(String msg) global
+    string loc_msg = "[UD,INFO,T="+Utility.GetCurrentRealTime()+"]: " + msg
+    debug.trace(loc_msg)
+    ConsoleUtil.PrintMessage(loc_msg)
+EndFunction
+
+Function GWarning(String msg) global
+    string loc_msg = "[UD,WARNING,T="+Utility.GetCurrentRealTime()+"]: " + msg
+    debug.trace(loc_msg)
+    ConsoleUtil.PrintMessage(loc_msg)
+EndFunction
+
+;global error function. Ignore safety in sake of usebality
+Function GError(String msg) global
+    string loc_msg = "[UD,!ERROR!,T="+Utility.GetCurrentRealTime()+"]: " + msg
+    debug.trace(loc_msg)
+    ConsoleUtil.PrintMessage(loc_msg)
+EndFunction
+
 ; thanks to Subhuman#6830 for ESPFE form check, compatible with LE
 ; Notes given by him:
 ; 1) it breaks the compile-time dependency.   GetformFromFile requires you to have the plugin you're getting a form for in order to compile, this does not
@@ -789,6 +819,36 @@ form function GetMeMyForm(int formNumber, string pluginName) global;fornumber fo
         return Game.GetFormEx(Math.LogicalOr(Math.LeftShift(theLO, 24), formNumber))
     endIf
 endFunction
+
+;open text input for user and return string
+string Function GetUserTextInput()
+    TextMenu.ResetMenu()
+    TextMenu.OpenMenu()
+    TextMenu.BlockUntilClosed()
+    return TextMenu.GetResultString()
+EndFunction
+
+;open list of options and return selected option
+Int Function GetUserListInput(string[] arrList)
+    ListMenu.ResetMenu()
+    int loc_i = 0
+    while loc_i < arrList.length
+        ListMenu.AddEntryItem(arrList[loc_i])
+        loc_i+=1
+    endwhile
+    ListMenu.OpenMenu()
+    ListMenu.BlockUntilClosed()
+    return ListMenu.GetResultInt()
+EndFunction
+
+Form Function GetShield(Actor akActor) Global
+    Form loc_shield = akActor.GetEquippedObject(0)
+    if loc_shield && (loc_shield.GetType() == 26 || loc_shield.GetType() == 31)
+        return loc_shield
+    else
+        return none
+    endif
+EndFunction
 
 ;very fast function for checking if menu is open
 ;have little lag because it works by checking events

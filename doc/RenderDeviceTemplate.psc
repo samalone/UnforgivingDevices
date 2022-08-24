@@ -59,8 +59,8 @@ EndFunction
 Function OnMinigameEnd() ;called when minigame end
 	parent.OnMinigameEnd()
 EndFunction
-Function OnMinigameTick() ;called every on every tick of minigame. Uses MCM performance setting
-	parent.OnMinigameTick()
+Function OnMinigameTick(Float abUpdateTime) ;called every on every tick of minigame. Uses MCM performance setting
+	parent.OnMinigameTick(abUpdateTime)
 EndFunction
 Function OnMinigameTick1() ;called every 1s of minigame
 	parent.OnMinigameTick1()
@@ -131,8 +131,8 @@ EndFunction
 Function onLockUnlocked(bool lockpick = false)
 	parent.onLockUnlocked(lockpick)
 EndFunction
-Function onSpecialButtonPressed()
-	parent.onSpecialButtonPressed()
+Function onSpecialButtonPressed(Float afMult)
+	parent.onSpecialButtonPressed(afMult)
 EndFunction
 Function onSpecialButtonReleased(Float fHoldTime)
 	parent.onSpecialButtonReleased(fHoldTime)
@@ -171,5 +171,5 @@ float Function getStruggleOrgasmRate()
 	return parent.getStruggleOrgasmRate()
 EndFunction
 Float[] Function GetCurrentMinigameExpression()
-	return GetCurrentMinigameExpression()
+	return parent.GetCurrentMinigameExpression()
 EndFunction

@@ -29,6 +29,11 @@ Form[] Property UD_BodySlots auto hidden
 UD_CustomDevice_RenderScript _handRestrain = none
 UD_CustomDevice_RenderScript Property UD_HandRestrain Hidden
     UD_CustomDevice_RenderScript Function get()
+        if _handRestrain
+            if _handRestrain.IsUnlocked
+                _handRestrain = none
+            endif
+        endif
         if GetActor().wornhaskeyword(libs.zad_deviousHeavyBondage)
             if !_handRestrain
                 _handRestrain = getHeavyBondageDevice()
@@ -48,8 +53,19 @@ int _iUsedSlots = 0
 int _iScriptState = 0
 bool Property Ready = False auto hidden
 
-Weapon Property BestWeapon = none auto hidden
-
+;Weapon Property BestWeapon = none auto hidden
+Weapon _BestWeapon
+Weapon Property UD_BestWeapon Hidden
+    Weapon Function get()
+        if !_BestWeapon || GetActor().getItemCount(_BestWeapon) == 0
+            _BestWeapon = GetBestWeapon()
+        endif
+        return _BestWeapon
+    EndFunction
+    Function set(Weapon akWeapon)
+        _BestWeapon = akWeapon
+    EndFunction
+EndProperty
 float Property AgilitySkill         = 0.0 auto hidden
 float Property StrengthSkill        = 0.0 auto hidden
 float Property MagickSkill          = 0.0 auto hidden
@@ -57,6 +73,20 @@ float Property CuttingSkill         = 0.0 auto hidden
 float Property SmithingSkill        = 0.0 auto hidden
 
 float Property ArousalSkillMult     = 1.0 auto hidden
+
+;prevent slot update
+State UpdatePaused
+    Function update(float fTimePassed)
+    EndFunction
+    Function updateHour(float fMult)
+    EndFunction
+    Function UpdateSlot()
+    EndFunction
+    Function DeviceUpdate(UD_CustomDevice_RenderScript akDevice,Float afTimePassed)
+    EndFunction
+    Function UpdateSkills()
+    EndFunction
+EndState
 
 ;update other variables
 Function UpdateSlot()
@@ -112,7 +142,6 @@ Event OnInit()
 EndEvent
 
 Event OnPlayerLoadGame()
-
 EndEvent
 
 UD_CustomDevice_RenderScript Function GetUserSelectedDevice()
@@ -196,9 +225,6 @@ Function SetSlotTo(Actor akActor)
 EndFunction
 
 Function Init()
-    
-    ;loc_res += "Orgasm capacity: " + getActorOrgasmCapacity(akActor) + "\n"
-    ;loc_res += "Orgasm resistence: " + getActorOrgasmResist(akActor) + "\n"
 EndFunction
 
 bool Function isInPlayerCell()
@@ -317,6 +343,12 @@ Function fix()
         StorageUtil.UnsetFloatValue(getActor(), "UD_OrgasmRateMultiplier")
         StorageUtil.UnsetFloatValue(getActor(), "UD_ArousalRate")
         StorageUtil.UnsetFloatValue(getActor(), "UD_ArousalRateM")
+        StorageUtil.UnsetIntValue(getActor(), "UD_OrgasmRate")
+        StorageUtil.UnsetIntValue(getActor(), "UD_OrgasmForcing")
+        StorageUtil.UnsetIntValue(getActor(), "UD_OrgasmResistMultiplier")
+        StorageUtil.UnsetIntValue(getActor(), "UD_OrgasmRateMultiplier")
+        StorageUtil.UnsetIntValue(getActor(), "UD_ArousalRate")
+        StorageUtil.UnsetIntValue(getActor(), "UD_ArousalRateM")
         StorageUtil.UnsetIntValue(getActor(), "UD_OrgasmExhaustion")
         StorageUtil.UnsetIntValue(getActor(), "UD_ActiveVib_Strength")
         StorageUtil.UnsetIntValue(getActor(), "UD_ActiveVib")
@@ -331,7 +363,22 @@ Function fix()
             int loc_i = 0
             string[] loc_list
             while loc_i < 32
-                loc_list = PapyrusUtil.PushString(loc_list,UD_BodySlots[loc_i].getName() + " ( " +UD_BodySlots[loc_i] + " )")
+                String loc_string = "[" +(30 + loc_i) + "] "
+                if UD_BodySlots[loc_i].getName()
+                    loc_string += UD_BodySlots[loc_i].getName() ;armor have name, use it
+                else
+                    loc_string += UD_BodySlots[loc_i] ;armor doesn't have name, show editor ID
+                    if UD_BodySlots[loc_i].HasKeyWord(UDmain.UDlibs.UnforgivingDevice)
+                        loc_string += " (UD)"
+                    elseif UD_BodySlots[loc_i].HasKeyWord(libs.zad_Lockable)
+                        loc_string += " (DD)"
+                    elseif UD_BodySlots[loc_i] == libs.DevicesUnderneath.zad_DeviceHider
+                        loc_string += " (HIDER)" 
+                    endif
+                endif
+                
+                
+                loc_list = PapyrusUtil.PushString(loc_list,loc_string)
                 loc_i += 1
             endwhile
             loc_list = PapyrusUtil.PushString(loc_list,"-BACK-")
@@ -553,7 +600,6 @@ Function removeAllDevices()
     StorageUtil.UnSetIntValue(getActor(), "UD_blockSlotUpdate")
     ;endDeviceManipulation()
 EndFunction
-
 
 Function removeUnusedDevices()
     startDeviceManipulation()
@@ -802,11 +848,15 @@ EndFunction
 Function update(float fTimePassed)
     int i = 0
     while UD_equipedCustomDevices[i]
-        if UD_equipedCustomDevices[i].isReady()
-            UD_equipedCustomDevices[i].update(fTimePassed)
-        endif
+        DeviceUpdate(UD_equipedCustomDevices[i],fTimePassed)
         i+=1
     endwhile
+EndFunction
+
+Function DeviceUpdate(UD_CustomDevice_RenderScript akDevice,Float afTimePassed)
+    if akDevice.isReady()
+        akDevice.update(afTimePassed)
+    endif
 EndFunction
 
 Function updateHour(float fMult)
@@ -1098,8 +1148,9 @@ Function TurnOffAllVibrators()
     endif
     int i = 0
     while UD_equipedCustomDevices[i]
-        if UD_equipedCustomDevices[i] as UD_CustomVibratorBase_RenderScript && !(UD_equipedCustomDevices[i] as UD_ControlablePlug_RenderScript)
-            if (UD_equipedCustomDevices[i] as UD_CustomVibratorBase_RenderScript).isVibrating()
+        UD_CustomVibratorBase_RenderScript loc_vib = (UD_equipedCustomDevices[i] as UD_CustomVibratorBase_RenderScript)
+        if loc_vib && !(loc_vib as UD_ControlablePlug_RenderScript)
+            if loc_vib.isVibrating() && loc_vib.getRemainingVibrationDuration() > 0
                 if UDmain.TraceAllowed()                
                     UDCDmain.Log("Stoping " + UD_equipedCustomDevices[i].getDeviceName() + " on " + getSlotedNPCName())
                 endif
@@ -1119,15 +1170,29 @@ int Function getVibratorNum()
     int i = 0
     while UD_equipedCustomDevices[i]
         if UD_equipedCustomDevices[i] as UD_CustomVibratorBase_RenderScript
-            ;if (UD_equipedCustomDevices[i] as UD_CustomVibratorBase_RenderScript).CanVibrate()
-                found_devices += 1
-            ;endif
+            found_devices += 1
         endif
         i+=1
     endwhile
     if UDmain.TraceAllowed()    
         UDCDmain.Log("getOffVibratorNum() - return value: " + found_devices,3)
     endif
+    return found_devices
+EndFunction
+
+;returns number of vibrators
+int Function getActivableVibratorNum()
+    int found_devices = 0
+    int i = 0
+    while UD_equipedCustomDevices[i]
+        UD_CustomVibratorBase_RenderScript loc_vib = UD_equipedCustomDevices[i] as UD_CustomVibratorBase_RenderScript
+        if loc_vib
+            if loc_vib.canVibrate()
+                found_devices += 1
+            endif
+        endif
+        i+=1
+    endwhile
     return found_devices
 EndFunction
 
@@ -1207,6 +1272,24 @@ UD_CustomDevice_RenderScript[] Function getOffVibrators()
     if UDmain.TraceAllowed()    
         UDCDmain.Log("getOffVibrators() - return array: " + res,3)
     endif
+    return res
+EndFunction
+
+;returns all turned activable vibrators
+UD_CustomDevice_RenderScript[] Function getActivableVibrators()
+    UD_CustomDevice_RenderScript[] res = UDCDmain.MakeNewDeviceSlots()
+    int found_devices = 0
+    int i = 0
+    while UD_equipedCustomDevices[i]
+        if UD_equipedCustomDevices[i] as UD_CustomVibratorBase_RenderScript
+            UD_CustomVibratorBase_RenderScript loc_vibrator = (UD_equipedCustomDevices[i] as UD_CustomVibratorBase_RenderScript)
+            if loc_vibrator.CanVibrate()
+                res[found_devices] = loc_vibrator
+                found_devices += 1
+            endif
+        endif
+        i+=1
+    endwhile
     return res
 EndFunction
 
@@ -1312,19 +1395,21 @@ Function regainDevices()
     
     ;super complex shit
     int removedDevices = removeWrongWearerDevices()
-    int iItem = _currentSlotedActor.GetNumItems()
-    while iItem
-        iItem -= 1
-        Armor ArmorDevice = _currentSlotedActor.GetNthForm(iItem) as Armor
+    int loc_slotmask = 0x80000000;_currentSlotedActor.GetNumItems()
+    while loc_slotmask
+        loc_slotmask = Math.RightShift(loc_slotmask,1)
+        Armor ArmorDevice = _currentSlotedActor.GetWornForm(loc_slotmask) as Armor;GetNthForm(iItem) as Armor
         if ArmorDevice
-            if ArmorDevice.hasKeyword(UDCDmain.UDlibs.PatchedInventoryDevice)
+            if ArmorDevice.hasKeyword(UDCDmain.UDlibs.UnforgivingDevice)
                 ;render device with custom script -> register
-                if !deviceAlreadyRegistered(ArmorDevice)
-                    UD_CustomDevice_RenderScript script = UDCDmain.FetchDeviceByInventory(_currentSlotedActor,ArmorDevice)
+                if !deviceAlreadyRegisteredRender(ArmorDevice)
+                    UD_CustomDevice_RenderScript script = UDCDmain.getDeviceScriptByRender(_currentSlotedActor,ArmorDevice)
                     if _currentSlotedActor.getItemCount(script.DeviceInventory) && _currentSlotedActor.getItemCount(script.DeviceRendered)
                         if registerDevice(script)
-                            UDCDmain.Log("UD_CustomDevice_NPCSlot,"+ self +"/ Device "+ script.getDeviceName() + " succesfully registered!",1)
-                        endif    
+                            if UDmain.TraceAllowed()
+                                UDmain.Log("UD_CustomDevice_NPCSlot,"+ self +"/ Device "+ script.getDeviceName() + " succesfully registered!",2)
+                            endif
+                        endif
                     endif
                 endif
             endif
@@ -1338,10 +1423,8 @@ Event OnItemAdded(Form akBaseItem, int aiItemCount, ObjectReference akItemRefere
     if akBaseItem as Weapon
         Weapon loc_weapon = akBaseItem as Weapon
         if UDCDmain.isSharp(loc_weapon)
-            if !BestWeapon
-                BestWeapon = loc_weapon
-            elseif BestWeapon.getBaseDamage() < loc_weapon.GetBaseDamage()
-                BestWeapon = loc_weapon
+            if _BestWeapon.getBaseDamage() < loc_weapon.GetBaseDamage()
+                _BestWeapon = loc_weapon
             endif
         endif
     endIf
@@ -1350,43 +1433,44 @@ endEvent
 Event OnItemRemoved(Form akBaseItem, int aiItemCount, ObjectReference akItemReference, ObjectReference akDestContainer)
     if akBaseItem as Weapon
         Weapon loc_weapon = akBaseItem as Weapon
-        if loc_weapon == BestWeapon
-            if getActor().getItemCount(BestWeapon) == 0
-                BestWeapon = UDCDmain.getSharpestWeapon(getActor()) ;find the next best weapon
+        if loc_weapon == _BestWeapon
+            if getActor().getItemCount(loc_weapon) == 0
+                _BestWeapon = GetBestWeapon() ;find the next best weapon
             endif
         endif
     endIf
 endEvent
 
 Weapon Function GetBestWeapon()
-    if BestWeapon
-        return BestWeapon
-    else
-        int loc_i = getActor().GetNumItems()
-        while loc_i
-            loc_i -= 1
-            Weapon loc_weapon = getActor().GetNthForm(loc_i) as Weapon
-            if loc_weapon
-                if UDCDmain.isSharp(loc_weapon)
-                    if !BestWeapon
-                        BestWeapon = loc_weapon
-                    elseif (loc_weapon.getBaseDamage() > BestWeapon.GetBaseDamage())
-                        BestWeapon = loc_weapon
-                    endif
+    int loc_i = getActor().GetNumItems()
+    Weapon loc_res = none
+    if getActor().GetItemCount(_BestWeapon)
+        loc_res = _BestWeapon
+    endif
+    while loc_i
+        loc_i -= 1
+        Weapon loc_weapon = getActor().GetNthForm(loc_i) as Weapon
+        if loc_weapon
+            if UDCDmain.isSharp(loc_weapon)
+                if !loc_res
+                    loc_res = loc_weapon
+                elseif (loc_weapon.getBaseDamage() > loc_res.GetBaseDamage())
+                    loc_res = loc_weapon
                 endif
             endif
-        endwhile
-        return BestWeapon
-    endif
+        endif
+    endwhile
+    return loc_res
 EndFunction
 
 Function UpdateSkills()
-    AgilitySkill = UDCDmain.getActorAgilitySkills(getActor())
-    StrengthSkill = UDCDmain.getActorStrengthSkills(getActor())
-    MagickSkill = UDCDmain.getActorMagickSkills(getActor())
-    CuttingSkill = UDCDmain.getActorCuttingSkills(getActor())
-    SmithingSkill = UDCDmain.getActorSmithingSkills(getActor())
+    AgilitySkill    = UDmain.UDSKILL.getActorAgilitySkills(getActor())
+    StrengthSkill   = UDmain.UDSKILL.getActorStrengthSkills(getActor())
+    MagickSkill     = UDmain.UDSKILL.getActorMagickSkills(getActor())
+    CuttingSkill    = UDmain.UDSKILL.getActorCuttingSkills(getActor())
+    SmithingSkill   = UDmain.UDSKILL.getActorSmithingSkills(getActor())
 EndFunction
+
 
 ;===============================================================================
 ;===============================================================================
@@ -1395,16 +1479,16 @@ EndFunction
 ;===============================================================================
 
 ;LOCK MUTEX
-bool     Property UD_GlobalDeviceMutex_InventoryScript                 = false auto hidden
-bool     Property UD_GlobalDeviceMutex_InventoryScript_Failed         = false auto hidden
-Armor     Property UD_GlobalDeviceMutex_Device                         = none     auto hidden
+bool        Property UD_GlobalDeviceMutex_InventoryScript                   = false     auto hidden
+bool        Property UD_GlobalDeviceMutex_InventoryScript_Failed            = false     auto hidden
+Armor       Property UD_GlobalDeviceMutex_Device                            = none      auto hidden
 
 ;UNLOCK MUTEX
-bool     Property UD_GlobalDeviceUnlockMutex_InventoryScript         = false auto hidden
-bool     Property UD_GlobalDeviceUnlockMutex_InventoryScript_Failed     = false auto hidden
-Armor     Property UD_GlobalDeviceUnlockMutex_Device                     = none     auto hidden
+bool        Property UD_GlobalDeviceUnlockMutex_InventoryScript             = false     auto hidden
+bool        Property UD_GlobalDeviceUnlockMutex_InventoryScript_Failed      = false     auto hidden
+Armor       Property UD_GlobalDeviceUnlockMutex_Device                      = none      auto hidden
 
-Keyword Property UD_UnlockToken                                        = none     auto hidden    
+Keyword     Property UD_UnlockToken                                         = none      auto hidden    
 
 Function ResetMutex_Lock(Armor invDevice)
     UD_GlobalDeviceMutex_inventoryScript                 = false
@@ -1417,6 +1501,10 @@ Function ResetMutex_Unlock(Armor invDevice)
     UD_GlobalDeviceUnlockMutex_InventoryScript_Failed     = false
     UD_UnlockToken                                        = none
     UD_GlobalDeviceUnlockMutex_Device                     = invDevice
+EndFunction
+
+Bool Function IsMutexOn()
+    return _LOCKDEVICE_MUTEX || _UNLOCKDEVICE_MUTEX
 EndFunction
 
 ;function made as replacemant for akActor.isEquipped, because that function doesn't work for NPCs
@@ -1440,13 +1528,15 @@ EndFunction
 
 Bool _LOCKDEVICE_MUTEX = false
 Function StartLockMutex()
-    while _LOCKDEVICE_MUTEX; || _UNLOCKDEVICE_MUTEX
-        Utility.waitMenuMode(0.01)
+    while _LOCKDEVICE_MUTEX
+        Utility.waitMenuMode(0.1)
     endwhile
     _LOCKDEVICE_MUTEX = true
+    GoToState("UpdatePaused")
 EndFunction
 
 Function EndLockMutex()
+    GoToState("")
     _LOCKDEVICE_MUTEX = false
 EndFunction
 
@@ -1456,13 +1546,15 @@ EndFunction
 
 Bool _UNLOCKDEVICE_MUTEX = false
 Function StartUnLockMutex()
-    while _UNLOCKDEVICE_MUTEX; || _LOCKDEVICE_MUTEX
-        Utility.waitMenuMode(0.01)
+    while _UNLOCKDEVICE_MUTEX
+        Utility.waitMenuMode(0.1)
     endwhile
     _UNLOCKDEVICE_MUTEX = true
+    GoToState("UpdatePaused")
 EndFunction
 
 Function EndUnLockMutex()
+    GoToState("")
     _UNLOCKDEVICE_MUTEX = false
 EndFunction
 
@@ -1470,14 +1562,15 @@ Bool Function IsUnlockMutexed(Armor invDevice)
     return UD_GlobalDeviceUnlockMutex_Device == invDevice
 EndFunction
 
+
 Function ProccesLockMutex()
     float loc_time = 0.0
-    while loc_time <= UDCDmain.UD_LockUnlockMutexTimeOutTime && (!UD_GlobalDeviceMutex_InventoryScript)
-        Utility.waitMenuMode(0.001)
-        loc_time += 0.001
+    while loc_time <= 3.0 && (!UD_GlobalDeviceMutex_InventoryScript)
+        Utility.waitMenuMode(0.1)
+        loc_time += 0.1
     endwhile
     
-    if UD_GlobalDeviceMutex_InventoryScript_Failed || loc_time >= UDCDmain.UD_LockUnlockMutexTimeOutTime
+    if UD_GlobalDeviceMutex_InventoryScript_Failed || loc_time >= 3.0
         UDCDmain.Error("LockDevicePatched("+GetSlotedNPCName()+","+UD_GlobalDeviceMutex_Device.getName()+") failed!!! ID Fail? " + UD_GlobalDeviceMutex_InventoryScript_Failed)
     endif
     
@@ -1486,12 +1579,12 @@ EndFunction
 
 Function ProccesUnlockMutex()
     float loc_time = 0.0
-    while loc_time <= UDCDmain.UD_LockUnlockMutexTimeOutTime && (!UD_GlobalDeviceUnlockMutex_InventoryScript)
-        Utility.waitMenuMode(0.001)
-        loc_time += 0.001
+    while loc_time <= 3.0 && (!UD_GlobalDeviceUnlockMutex_InventoryScript)
+        Utility.waitMenuMode(0.1)
+        loc_time += 0.1
     endwhile
     
-    if UD_GlobalDeviceUnlockMutex_InventoryScript_Failed || loc_time >= UDCDmain.UD_LockUnlockMutexTimeOutTime
+    if UD_GlobalDeviceUnlockMutex_InventoryScript_Failed || loc_time >= 3.0
         UDCDmain.Error("LockDevicePatched("+GetSlotedNPCName()+","+UD_GlobalDeviceUnlockMutex_Device.getName()+") failed!!! ID Fail? " + UD_GlobalDeviceUnlockMutex_InventoryScript_Failed)
     endif
     

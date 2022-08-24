@@ -64,27 +64,30 @@ Event OnContainerChanged(ObjectReference akNewContainer, ObjectReference akOldCo
     Actor giver = akOldContainer as Actor
     Actor target = akNewContainer as Actor
         
-    if  Math.LogicalAnd(StorageUtil.GetIntValue(target, "UD_ignoreEvent" + deviceInventory, 0),0x001)
-        if Math.LogicalAnd(StorageUtil.GetIntValue(target, "UD_ignoreEvent" + deviceInventory, 0),0x004)
+    Int loc_ignoreEventTarget = StorageUtil.GetIntValue(target, "UD_ignoreEvent" + deviceInventory, 0)
+    if  Math.LogicalAnd(loc_ignoreEventTarget,0x001)
+        if Math.LogicalAnd(loc_ignoreEventTarget,0x004)
             ;prevents removal
             akNewContainer.removeItem(deviceInventory,1,True,akOldContainer)
         endif
-        if Math.LogicalAnd(StorageUtil.GetIntValue(target, "UD_ignoreEvent" + deviceInventory, 0),0x002)
-            StorageUtil.SetIntValue(target, "UD_ignoreEvent" + deviceInventory,Math.LogicalAnd(StorageUtil.GetIntValue(target, "UD_ignoreEvent" + deviceInventory, 0),0xFF0))
+        if Math.LogicalAnd(loc_ignoreEventTarget,0x002)
+            StorageUtil.SetIntValue(target, "UD_ignoreEvent" + deviceInventory,Math.LogicalAnd(loc_ignoreEventTarget,0xFF0))
         endif            
         return
     endif
     
-    if Math.LogicalAnd(StorageUtil.GetIntValue(giver, "UD_ignoreEvent" + deviceInventory, 0),0x001)
-        if Math.LogicalAnd(StorageUtil.GetIntValue(giver, "UD_ignoreEvent" + deviceInventory, 0),0x004)
+    Int loc_ignoreEventGiver = StorageUtil.GetIntValue(giver, "UD_ignoreEvent" + deviceInventory, 0)
+    if Math.LogicalAnd(loc_ignoreEventGiver,0x001)
+        if Math.LogicalAnd(loc_ignoreEventGiver,0x004)
             ;prevents removal
             akOldContainer.removeItem(deviceInventory,1,True,akNewContainer)
         endif
-        if Math.LogicalAnd(StorageUtil.GetIntValue(giver, "UD_ignoreEvent" + deviceInventory, 0),0x002)
-            StorageUtil.SetIntValue(giver, "UD_ignoreEvent" + deviceInventory,Math.LogicalAnd(StorageUtil.GetIntValue(giver, "UD_ignoreEvent" + deviceInventory, 0),0xFF0))
+        if Math.LogicalAnd(loc_ignoreEventGiver,0x002)
+            StorageUtil.SetIntValue(giver, "UD_ignoreEvent" + deviceInventory,Math.LogicalAnd(loc_ignoreEventGiver,0xFF0))
         endif
         return
     endif
+    
     if UDCDmain
         if target && giver
             if UDmain.TraceAllowed()            
@@ -102,10 +105,10 @@ Event OnContainerChanged(ObjectReference akNewContainer, ObjectReference akOldCo
                 UDCDmain.Log(" Device " + deviceInventory.getName() + " send to Event Container! Waiting for device to return to inventory!",3)
             endif
             while !deviceReturned
-                Utility.WaitMenuMode(0.05)
+                Utility.WaitMenuMode(0.001)
             endwhile
             deviceReturned = False
-            if UDmain.TraceAllowed()            
+            if UDmain.TraceAllowed()
                 UDCDmain.Log(" Device regained! Starting unlock operatios!",1)
             endif
             unlockDevice(giver)
@@ -115,7 +118,7 @@ Event OnContainerChanged(ObjectReference akNewContainer, ObjectReference akOldCo
         if UDmain.IsContainerMenuOpen()
             if target && giver
                 if !target.isDead() && !giver.isDead()
-                    if giver.getItemCount(deviceRendered) && giver.getItemCount(deviceInventory) == 1
+                    if giver.getItemCount(deviceRendered) && giver.getItemCount(deviceInventory) == 0
                         if UDmain.TraceAllowed()                        
                             UDCDmain.Log("Opening device menu for " + deviceInventory.getName() + " on "+ giver.getActorBase().getName() +" , helper:  " + target.getActorBase().getName(),1)
                         endif
@@ -127,7 +130,7 @@ Event OnContainerChanged(ObjectReference akNewContainer, ObjectReference akOldCo
                         StorageUtil.UnSetIntValue(giver, "UD_ignoreEvent" + deviceInventory)
                         StorageUtil.UnSetIntValue(target, "UD_ignoreEvent" + deviceInventory)
                         return
-                    elseif !UDmain.ActorIsPlayer(target) && !target.getItemCount(deviceRendered)
+                    elseif !UDmain.ActorIsPlayer(target) && !target.getItemCount(deviceRendered) && target.getItemCount(deviceInventory)
                         if UDmain.TraceAllowed()                        
                             UDCDmain.Log("OnContainerChanged - Locking device " + deviceInventory.getName() + " to "+ target.getActorBase().getName(),1)
                         endif
@@ -176,7 +179,16 @@ Event OnContainerChanged(ObjectReference akNewContainer, ObjectReference akOldCo
             endif
         endif
     endif
-
+    
+    if giver
+        ;ID removed even when render device is still present, put ID back to actor
+        if giver.getItemCount(deviceRendered) && !giver.getItemCount(deviceInventory)
+            UDmain.Warning("Remove attempt detected for " + self + " - Prevented")
+            akNewContainer.removeItem(deviceInventory,1,True,giver)
+            StorageUtil.SetIntValue(giver, "UD_ignoreEvent" + deviceInventory, 0x030)
+            giver.EquipItem(deviceInventory,False,True)
+        endif
+    endif
     parent.OnContainerChanged(akNewContainer,akOldContainer)
 EndEvent
 
@@ -217,17 +229,13 @@ Function OnRemoveDevice(actor akActor)
     
     if deviceRendered.hasKeyword(libs.zad_DeviousGag)
         libs.RemoveGagEffect(akActor)
-        if !libs.IsAnimating(akActor)
-            akActor.ClearExpressionOverride()
-            ResetPhonemeModifier(akActor)
-        EndIf
-    endif
-    if  deviceRendered.hasKeyword(libs.zad_DeviousGagPanel)
-        if akActor.GetFactionRank(UDCDmain.zadGagPanelFaction) == 0
-            akActor.RemoveItem(zad_GagPanelPlug, 1)
-        EndIf
-        akActor.SetFactionRank(UDCDmain.zadGagPanelFaction, 0)
-        akActor.RemoveFromFaction(UDCDmain.zadGagPanelFaction)
+        if  deviceRendered.hasKeyword(libs.zad_DeviousGagPanel)
+            if akActor.GetFactionRank(UDCDmain.zadGagPanelFaction) == 0
+                akActor.RemoveItem(zad_GagPanelPlug, 1)
+            EndIf
+            akActor.SetFactionRank(UDCDmain.zadGagPanelFaction, 0)
+            akActor.RemoveFromFaction(UDCDmain.zadGagPanelFaction)
+        endif
     endif
 EndFunction
 
@@ -238,12 +246,13 @@ Event OnEquipped(Actor akActor)
     if UDmain.TraceAllowed()    
         UDCDmain.Log("OnEquipped("+MakeDeviceHeader(akActor,deviceInventory)+") - called",3)
     endif
-    if Math.LogicalAnd(StorageUtil.GetIntValue(akActor, "UD_ignoreEvent" + deviceInventory, 0),0x010)
+    Int loc_ignoreEvent = StorageUtil.GetIntValue(akActor, "UD_ignoreEvent" + deviceInventory, 0)
+    if Math.LogicalAnd(loc_ignoreEvent,0x010)
         if UDmain.TraceAllowed()        
             UDCDmain.Log("OnEquipped("+MakeDeviceHeader(akActor,deviceInventory)+") -  aborted because of filter",3)
         endif
-        if Math.LogicalAnd(StorageUtil.GetIntValue(akActor, "UD_ignoreEvent" + deviceInventory, 0),0x030)
-            StorageUtil.SetIntValue(akActor, "UD_ignoreEvent" + deviceInventory,Math.LogicalAnd(StorageUtil.GetIntValue(akActor, "UD_ignoreEvent" + deviceInventory, 0),0xF0F))
+        if Math.LogicalAnd(loc_ignoreEvent,0x030)
+            StorageUtil.SetIntValue(akActor, "UD_ignoreEvent" + deviceInventory,Math.LogicalAnd(loc_ignoreEvent,0xF0F))
         endif
         return
     endif
@@ -739,20 +748,20 @@ Event LockDevice(Actor akActor)
     endif
     
     _locked = true
-    if akActor == libs.PlayerRef ;doesn't work for NPCs, get todded
-        if !akActor.IsEquipped(DeviceInventory)
-            akActor.EquipItem(DeviceInventory, false, true)    
-        EndIf
-    endif
+    ;if akActor == libs.PlayerRef ;doesn't work for NPCs, get todded
+        ;if !akActor.IsEquipped(DeviceInventory)
+        ;    akActor.EquipItem(DeviceInventory, false, true)    
+        ;EndIf
+    ;endif
     
     akActor.EquipItem(DeviceRendered, true, true)
     
     int loc_ticks = 0
-    while loc_ticks <= 1000 && !UDCDmain.CheckRenderDeviceEquipped(akActor, deviceRendered)
-        Utility.waitMenuMode(0.001)
+    while loc_ticks <= 10 && !UDCDmain.CheckRenderDeviceEquipped(akActor, deviceRendered)
+        Utility.waitMenuMode(0.1)
         loc_ticks += 1
     endwhile
-    if loc_ticks >= 1000
+    if loc_ticks >= 10
         ;render device lock failed, abort
         _locked = false
         StorageUtil.SetIntValue(akActor, "UD_ignoreEvent" + deviceInventory,Math.LogicalOr(StorageUtil.GetIntValue(akActor, "UD_ignoreEvent" + deviceInventory, 0),0x300))
@@ -808,14 +817,16 @@ Event LockDevice(Actor akActor)
     libs.SendDeviceEquippedEvent(deviceName, akActor)
     libs.SendDeviceEquippedEventVerbose(deviceInventory, zad_DeviousDevice, akActor)
     
+    Bool loc_haveHBkwd = deviceRendered.HasKeyword(libs.zad_DeviousHeavyBondage)
+    
     if UDmain.ActorIsPlayer(akActor) && !akActor.IsOnMount() && UDmain.IsMenuOpen()
         ; make it visible for the player in case the menu is open
         akActor.QueueNiNodeUpdate()
-    elseif !UDmain.ActorIsPlayer(akActor) && !akActor.IsOnMount() && deviceRendered.HasKeyword(libs.zad_DeviousHeavyBondage)
+    elseif !UDmain.ActorIsPlayer(akActor) && !akActor.IsOnMount() && loc_haveHBkwd
         ; prevent a bug with straitjackets and elbowbinders not hiding NPC hands when equipping these items.        
         akActor.UpdateWeight(0)        
     EndIf    
-    if !UDmain.ActorIsPlayer(akActor) && (deviceRendered.HasKeyword(libs.zad_DeviousHeavyBondage) || deviceRendered.HasKeyword(libs.zad_DeviousHobbleSkirt))
+    if !UDmain.ActorIsPlayer(akActor) && (loc_haveHBkwd || deviceRendered.HasKeyword(libs.zad_DeviousHobbleSkirt))
         libs.RepopulateNpcs()
     EndIf    
     
@@ -825,16 +836,17 @@ Event LockDevice(Actor akActor)
     If TimedUnlock
         SetLockTimer()
     EndIf
-    if !UDmain.ActorIsPlayer(akActor) && akActor.GetActorBase().IsUnique() && (deviceRendered.HasKeyword(libs.zad_DeviousSuit) || deviceRendered.HasKeyword(libs.zad_DeviousHeavyBondage))
-        ; We change the outfit only for unique actors because SetOutfit() seems to operate on the ActorBASE and not the actor, so changing a non-unique actors's gear would change it for ALL instances of this actor.
-        Outfit originalOutfit = akActor.GetActorBase().GetOutfit()
-        If originalOutfit != libs.zadEmptyOutfit
-            StorageUtil.SetFormValue(akActor.GetActorBase(), "zad_OriginalOutfit", originalOutfit)
-        EndIf
-        akActor.SetOutfit(libs.zadEmptyOutfit, false)
-    endIf
-    
-    if CanApplyBoundEffect(akActor) 
+    if UDCDMain.UD_OutfitRemove
+        if !UDmain.ActorIsPlayer(akActor) && akActor.GetActorBase().IsUnique() && (deviceRendered.HasKeyword(libs.zad_DeviousSuit) || loc_haveHBkwd)
+            ; We change the outfit only for unique actors because SetOutfit() seems to operate on the ActorBASE and not the actor, so changing a non-unique actors's gear would change it for ALL instances of this actor.
+            Outfit originalOutfit = akActor.GetActorBase().GetOutfit()
+            If originalOutfit != libs.zadEmptyOutfit
+                StorageUtil.SetFormValue(akActor.GetActorBase(), "zad_OriginalOutfit", originalOutfit)
+            EndIf
+            akActor.SetOutfit(libs.zadEmptyOutfit, false)
+        endIf
+    endif
+    if CanApplyBoundEffect(akActor,loc_haveHBkwd) 
         libs.StartBoundEffects(akActor)
     endif
 EndEvent
@@ -842,15 +854,16 @@ EndEvent
 Function unlockDevice(Actor akActor)
     bool loc_failure = false
     StorageUtil.SetIntValue(akActor, "UD_ignoreEvent" + deviceInventory,0x111)
-    if !akActor.getItemCount(deviceRendered)
+    Int loc_RDNum = akActor.getItemCount(deviceRendered)
+    if !loc_RDNum
         loc_failure = true
         if UDmain.ActorIsPlayer(akActor)
             akActor.unequipItem(deviceInventory, 1, true)
         endif
     endif
     
-    UD_CustomDevice_NPCSlot loc_slot     = none
-    UD_MutexScript             loc_mutex     = none 
+    UD_CustomDevice_NPCSlot loc_slot    = none
+    UD_MutexScript          loc_mutex   = none 
     
     if !loc_failure
         loc_slot = UDCDmain.getNPCSlot(akActor)
@@ -884,20 +897,22 @@ Function unlockDevice(Actor akActor)
     if !loc_failure
         akActor.unequipItem(deviceInventory, 1, true)
         UD_CustomDevice_RenderScript device = getUDScript(akActor)
-        akActor.RemoveItem(deviceRendered, akActor.getItemCount(deviceRendered), true)
+        akActor.RemoveItem(deviceRendered, loc_RDNum, true)
         if device
             device.removeDevice(akActor)
         endif
     endif
 
     if loc_slot
-        loc_slot.UD_GlobalDeviceUnlockMutex_InventoryScript_Failed     = loc_failure
-        loc_slot.UD_GlobalDeviceUnlockMutex_InventoryScript         = True
+        loc_slot.UD_GlobalDeviceUnlockMutex_InventoryScript_Failed      = loc_failure
+        loc_slot.UD_GlobalDeviceUnlockMutex_InventoryScript             = True
     else
-        loc_mutex = UDMM.GetMutexSlot(akActor)
+        if !loc_mutex
+            loc_mutex = UDMM.GetMutexSlot(akActor)
+        endif
         if loc_mutex
-            loc_mutex.UD_GlobalDeviceUnlockMutex_InventoryScript_Failed = loc_failure
-            loc_mutex.UD_GlobalDeviceUnlockMutex_InventoryScript         = True
+            loc_mutex.UD_GlobalDeviceUnlockMutex_InventoryScript_Failed     = loc_failure
+            loc_mutex.UD_GlobalDeviceUnlockMutex_InventoryScript            = True
         endif
     endif
     
@@ -925,9 +940,9 @@ Function unlockDevice(Actor akActor)
     StorageUtil.UnSetIntValue(akActor, "UD_ignoreEvent" + deviceInventory)
 EndFunction
 
-bool Function CanApplyBoundEffect(Actor akActor) 
+bool Function CanApplyBoundEffect(Actor akActor,bool abHaveHB = False) 
     bool loc_res = false
-    loc_res = loc_res || deviceRendered.haskeyword(libs.zad_DeviousHeavyBondage)
+    loc_res = loc_res || abHaveHB || deviceRendered.haskeyword(libs.zad_DeviousHeavyBondage)
     loc_res = loc_res || deviceRendered.haskeyword(libs.zad_DeviousHobbleSkirt)
     loc_res = loc_res || deviceRendered.haskeyword(libs.zad_DeviousPonyGear)
     return loc_res
